@@ -24,8 +24,5 @@ sys.path[0] = sys.path[0]+os.sep+"pyfpdb"
 os.chdir(sys.path[0])
 #print "sys.path[0] =", sys.path[0], "cwd =", os.getcwd()
 
-if os.name=='nt':
-    os.execvpe('pythonw.exe', list(('pythonw.exe', 'fpdb_prerun.py'))+sys.argv[1:], os.environ)
-else:
-    os.execvpe('python', list(('python', 'fpdb_prerun.py'))+sys.argv[1:], os.environ)
+os.execvpe('pythonw.exe', list(('pythonw.exe', 'fpdb_prerun.py')) + sys.argv[1:], os.environ)
 # first arg is ignored (name of program being run)

@@ -23,6 +23,7 @@ _ = L10n.get_translation()
 
 import sys
 from collections import defaultdict
+from decimal import Decimal
 
 from Configuration import LOCALE_ENCODING
 from Exceptions import FpdbParseError
@@ -35,12 +36,12 @@ class PartyPoker(HandHistoryConverter):
     codepage = "utf8"
     siteId = 9
     filetype = "text"
-    sym        = {'USD': "\$", 'EUR': u"\u20ac", 'T$': ""}
-    currencies = {"\$": "USD", "$": "USD", u"\xe2\x82\xac": "EUR", u"\u20ac": "EUR", '': "T$"}
+    sym        = {'USD': r"\$", 'EUR': "\u20ac", 'T$': ""}
+    currencies = {r"\$": "USD", "$": "USD", "\xe2\x82\xac": "EUR", "\u20ac": "EUR", '': "T$"}
     substitutions = {
                      'LEGAL_ISO' : "USD|EUR",            # legal ISO currency codes
-                            'LS' : u"\$|\u20ac|\xe2\x82\xac|",    # Currency symbols - Euro(cp1252, utf-8)
-                           'NUM' : u".,\d",
+                            'LS' : "\\$|\u20ac|\xe2\x82\xac|",    # Currency symbols - Euro(cp1252, utf-8)
+                           'NUM' : r".,\d",
                     }
     limits = { 'NL':'nl', 'PL':'pl', '':'fl', 'FL':'fl' }
     games = {                         # base, category
@@ -87,7 +88,7 @@ class PartyPoker(HandHistoryConverter):
                'October':10, 'Oct':10, 'November':11, 'Nov':11, 'December':12, 'Dec':12}
 
     # Static regexes
-    re_GameInfo = re.compile(u"""
+    re_GameInfo = re.compile(r"""
             \*{5}\sHand\sHistory\s(F|f)or\sGame\s(?P<HID>\d+)\s\*{5}\s+
             ((?P<CURRENCY>[%(LS)s]))?\s*
             (
@@ -105,7 +106,7 @@ class PartyPoker(HandHistoryConverter):
             (?P<DATETIME>.+)
             """ % substitutions, re.VERBOSE | re.UNICODE)
 
-    re_HandInfo     = re.compile("""
+    re_HandInfo     = re.compile(r"""
             ^Table\s(?P<TABLE>.+?)?\s+
             ((?: \#|\(|)(?P<TABLENO>\d+)\)?\s+)?
             (\(No\sDP\)\s)?
@@ -114,7 +115,7 @@ class PartyPoker(HandHistoryConverter):
             \s+Total\s+number\s+of\s+players\s+\:\s+(?P<PLYRS>\d+)/?(?P<MAX>\d+)?
             """, re.VERBOSE|re.MULTILINE|re.DOTALL)
 
-    re_GameInfoTrny     = re.compile("""
+    re_GameInfoTrny     = re.compile(r"""
             \*{5}\sHand\sHistory\s(F|f)or\sGame\s(?P<HID>\d+)\s\*{5}\s+
             (?P<LIMIT>(NL|PL|FL|))\s*
             (?P<GAME>(Texas\sHold\'em|Omaha\sHi-Lo|Omaha|7\sCard\sStud\sHi-Lo|7\sCard\sStud|Double\sHold\'em))\s+
@@ -130,32 +131,32 @@ class PartyPoker(HandHistoryConverter):
             (?P<DATETIME>.+)
             """ % substitutions, re.VERBOSE | re.UNICODE)
 
-    re_PlayerInfo   = re.compile(u"""
+    re_PlayerInfo   = re.compile(r"""
           Seat\s(?P<SEAT>\d+):\s
           (?P<PNAME>.*)\s
           \(\s*[%(LS)s]?(?P<CASH>[%(NUM)s]+)\s*(?:%(LEGAL_ISO)s|)\s*\)
           """ % substitutions, re.VERBOSE| re.UNICODE)
 
-    re_NewLevel = re.compile(u"^Blinds(-Antes)?\((?P<SB>[%(NUM)s ]+)/(?P<BB>[%(NUM)s ]+)(?:\s*-\s*(?P<ANTE>[%(NUM)s ]+))?\)" % substitutions, re.VERBOSE|re.MULTILINE|re.DOTALL)
-    re_CountedSeats = re.compile("^Total\s+number\s+of\s+players\s*:\s*(?P<COUNTED_SEATS>\d+)", re.MULTILINE)
+    re_NewLevel = re.compile(r"^Blinds(-Antes)?\((?P<SB>[%(NUM)s ]+)/(?P<BB>[%(NUM)s ]+)(?:\s*-\s*(?P<ANTE>[%(NUM)s ]+))?\)" % substitutions, re.VERBOSE|re.MULTILINE|re.DOTALL)
+    re_CountedSeats = re.compile(r"^Total\s+number\s+of\s+players\s*:\s*(?P<COUNTED_SEATS>\d+)", re.MULTILINE)
     re_SplitHands   = re.compile('\n\n+')
     re_TailSplitHands   = re.compile('(\x00+)')
     lineSplitter    = '\n'
-    re_Button       = re.compile('Seat (?P<BUTTON>\d+) is the button', re.MULTILINE)
+    re_Button       = re.compile(r'Seat (?P<BUTTON>\d+) is the button', re.MULTILINE)
     re_Board        = re.compile(r"\[(?P<CARDS>.+)\]")
     re_NoSmallBlind = re.compile(
                     '^There is no Small Blind in this hand as the Big Blind '
                     'of the previous hand left the table', re.MULTILINE)
     re_20BBmin       = re.compile(r"Table 20BB Min")
-    re_Cancelled     = re.compile('Table\sClosed\s?', re.MULTILINE)
-    re_Disconnected  = re.compile('Connection\sLost\sdue\sto\ssome\sreason\s?', re.MULTILINE)
-    re_GameStartLine = re.compile('Game\s\#\d+\sstarts', re.MULTILINE)
+    re_Cancelled     = re.compile(r'Table\sClosed\s?', re.MULTILINE)
+    re_Disconnected  = re.compile(r'Connection\sLost\sdue\sto\ssome\sreason\s?', re.MULTILINE)
+    re_GameStartLine = re.compile(r'Game\s\#\d+\sstarts', re.MULTILINE)
 
     def allHandsAsList(self):
         list = HandHistoryConverter.allHandsAsList(self)
         if list is None:
             return []
-        return filter(lambda text: len(text.strip()), list)
+        return [text for text in list if len(text.strip())]
 
     def compilePlayerRegexs(self,  hand):
         players = set([player[1] for player in hand.players])
@@ -165,13 +166,13 @@ class PartyPoker(HandHistoryConverter):
             player_re = "(?P<PNAME>" + "|".join(map(re.escape, players)) + ")"
             subst = {'PLYR': player_re, 'CUR_SYM': self.sym[hand.gametype['currency']],
                 'CUR': hand.gametype['currency'] if hand.gametype['currency']!='T$' else '(chips|)',
-                'BRAX' : u"\[\(\)\]"
+                'BRAX' : r"\[\(\)\]"
                     }
             self.re_PostSB = re.compile(
                 r"^%(PLYR)s posts small blind [%(BRAX)s]?%(CUR_SYM)s(?P<SB>[.,0-9]+) ?%(CUR)s[%(BRAX)s]?\."
                 %  subst, re.MULTILINE)
             self.re_PostBB = re.compile(
-                u"%(PLYR)s posts big blind [%(BRAX)s]?%(CUR_SYM)s(?P<BB>[.,0-9]+) ?%(CUR)s[%(BRAX)s]?\."
+                r"%(PLYR)s posts big blind [%(BRAX)s]?%(CUR_SYM)s(?P<BB>[.,0-9]+) ?%(CUR)s[%(BRAX)s]?\."
                 %  subst, re.MULTILINE)
             self.re_PostDead = re.compile(
                 r"^%(PLYR)s posts big blind \+ dead [%(BRAX)s]?%(CUR_SYM)s?(?P<BBNDEAD>[.,0-9]+) ?%(CUR_SYM)s?[%(BRAX)s]?\." %  subst,
@@ -182,7 +183,7 @@ class PartyPoker(HandHistoryConverter):
             self.re_HeroCards = re.compile(
                 r"^Dealt to %(PLYR)s \[\s*(?P<NEWCARDS>.+)\s*\]" % subst,
                 re.MULTILINE)
-            self.re_Action = re.compile(u"""
+            self.re_Action = re.compile(r"""
                 ^%(PLYR)s\s+(?P<ATYPE>bets|checks|raises|completes|bring-ins|calls|folds|is\sall-In|double\sbets)
                 (?:\s+[%(BRAX)s]?%(CUR_SYM)s?(?P<BET>[.,\d]+)\s*(%(CUR)s)?[%(BRAX)s]?)?
                 \.?\s*$""" %  subst, re.MULTILINE|re.VERBOSE)
@@ -209,7 +210,7 @@ class PartyPoker(HandHistoryConverter):
                ]
 
     def determineGameType(self, handText):
-        handText = handText.replace(u'\x00', u'')
+        handText = handText.replace('\x00', '')
         info = {}
         m = self.re_GameInfo.search(handText)
         if not m:
@@ -300,7 +301,7 @@ class PartyPoker(HandHistoryConverter):
 
     def readHandInfo(self, hand):
         info, m2 = {}, None
-        hand.handText = hand.handText.replace(u'\x00', u'')
+        hand.handText = hand.handText.replace('\x00', '')
         m  = self.re_HandInfo.search(hand.handText,re.DOTALL)
         if hand.gametype['type'] == 'ring':
             m2 = self.re_GameInfo.search(hand.handText)
@@ -368,12 +369,12 @@ class PartyPoker(HandHistoryConverter):
                     hand.isKO = False
                     if info[key].find("$")!=-1:
                         hand.buyinCurrency="USD"
-                    elif info[key].find(u"€")!=-1:
+                    elif info[key].find("€")!=-1:
                         hand.buyinCurrency="EUR"
                     else:
                         log.error(_("PartyPokerToFpdb.readHandInfo: Failed to detect currency Hand ID: '%s' - '%s'") % (hand.handid, info[key]))
                         raise FpdbParseError
-                    info[key] = info[key].strip(u'$€')
+                    info[key] = info[key].strip('$€')
                     hand.buyin = int(100*Decimal(info[key]))
             if key == 'LEVEL':
                 hand.level = info[key]
@@ -394,12 +395,15 @@ class PartyPoker(HandHistoryConverter):
     def readPlayerStacks(self, hand):
         log.debug("readPlayerStacks")
         m = self.re_PlayerInfo.finditer(hand.handText)
-        maxKnownStack = 0
+        maxKnownStack = "0"
         zeroStackPlayers = []
         for a in m:
             if a.group('CASH') > '0':
                 #record max known stack for use with players with unknown stack
-                maxKnownStack = max(a.group('CASH'),maxKnownStack)
+                # max(str, int) is illegal in Python 3, so compare as money and
+                # keep the value in its original string form.
+                if Decimal(a.group('CASH').replace(',', '')) > Decimal(maxKnownStack.replace(',', '')):
+                    maxKnownStack = a.group('CASH')
                 hand.addPlayer(int(a.group('SEAT')), a.group('PNAME'), self.clearMoneyString(a.group('CASH')))
             else:
                 #zero stacked players are added later
@@ -538,14 +542,14 @@ class PartyPoker(HandHistoryConverter):
     def readHeroCards(self, hand):
         # we need to grab hero's cards
         for street in ('PREFLOP',):
-            if street in hand.streets.keys():
+            if street in list(hand.streets.keys()):
                 m = self.re_HeroCards.finditer(hand.streets[street])
                 for found in m:
                     hand.hero = found.group('PNAME')
                     newcards = renderCards(found.group('NEWCARDS'))
                     hand.addHoleCards(street, hand.hero, closed=newcards, shown=False, mucked=False, dealt=True)
                     
-        for street, text in hand.streets.iteritems():
+        for street, text in hand.streets.items():
             if not text or street in ('PREFLOP', 'DEAL'): continue  # already done these
             m = self.re_HeroCards.finditer(hand.streets[street])
             for found in m:
@@ -625,11 +629,11 @@ class PartyPoker(HandHistoryConverter):
         if type=="tour":
             if table_name:
                 TableName = table_name.split(" ")
-                print 'party', 'getTableTitleRe', "%s.+Table\s#?%s" % (TableName[0], table_number)
+                print('party', 'getTableTitleRe', r"%s.+Table\s#?%s" % (TableName[0], table_number))
                 if len(TableName[1]) > 6:
                     return "#?%s" % (table_number)
                 else:
-                   return "%s.+Table\s#?%s" % (TableName[0], table_number)
+                   return r"%s.+Table\s#?%s" % (TableName[0], table_number)
             else:
                 #
                 #sng's seem to get passed in with:
@@ -645,4 +649,4 @@ class PartyPoker(HandHistoryConverter):
 def renderCards(string):
     "Splits strings like ' Js, 4d '"
     cards = string.strip().split(' ')
-    return filter(len, map(lambda x: x.strip(' ,'), cards))
+    return list(filter(len, [x.strip(' ,') for x in cards]))

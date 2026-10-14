@@ -22,9 +22,8 @@ import sys
 import re
 import Queue
 
-if os.name == 'nt':
-    import win32api
-    import win32con
+import win32api
+import win32con
 
 print "Python " + sys.version[0:3] + '...'
 
@@ -230,13 +229,8 @@ class fpdb:
             _('... and others.'), _("See contributors.txt")])
         dia.set_program_name("Free Poker Database (FPDB)")
         
-        if (os.name=="posix"):
-            os_text=str(os.uname())
-        elif (os.name=="nt"):
-            import platform
-            os_text=("Windows" + " " + str(platform.win32_ver()))
-        else:
-            os_text="Unknown"
+        import platform
+        os_text=("Windows" + " " + str(platform.win32_ver()))
         
         import locale
         nums = [(_('Operating System'), os_text),
@@ -950,10 +944,7 @@ class fpdb:
             
         self.settings = {}
         self.settings['global_lock'] = self.lock
-        if (os.sep == "/"):
-            self.settings['os'] = "linuxmac"
-        else:
-            self.settings['os'] = "windows"
+        self.settings['os'] = "windows"
 
         self.settings.update({'cl_options': cl_options})
         self.settings.update(self.config.get_db_parameters())
@@ -1204,7 +1195,7 @@ You can find the full license texts in agpl-3.0.txt, gpl-2.0.txt, gpl-3.0.txt an
         # connect to required events
         self.window.connect("delete_event", self.delete_event)
         self.window.connect("destroy", self.destroy)
-        self.window.set_title("Free Poker DB - v%s" % (VERSION, ))
+        self.window.set_title("OpenPokerDB - v%s" % (VERSION, ))
         # set a default x/y size for the window
         self.window.set_border_width(1)
         defx, defy = 900, 720
@@ -1270,9 +1261,6 @@ You can find the full license texts in agpl-3.0.txt, gpl-2.0.txt, gpl-3.0.txt an
         if os.path.exists(cards):
             self.statusIcon.set_from_file(cards)
             self.window.set_icon_from_file(cards)
-        elif os.path.exists('/usr/share/pixmaps/fpdb-cards.png'):
-            self.statusIcon.set_from_file('/usr/share/pixmaps/fpdb-cards.png')
-            self.window.set_icon_from_file('/usr/share/pixmaps/fpdb-cards.png')
         else:
             self.statusIcon.set_from_stock(gtk.STOCK_HOME)
         self.statusIcon.set_tooltip("Free Poker Database")

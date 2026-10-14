@@ -469,7 +469,7 @@ class Filters(threading.Thread):
     def __set_hero_name(self, w, site):
         _name = w.get_text()
         # get_text() returns a str but we want internal variables to be unicode:
-        _guiname = unicode(_name)
+        _guiname = str(_name)
         self.heroes[site] = _guiname
         #log.debug("setting heroes[%s]: %s"%(site, self.heroes[site]))
     #end def __set_hero_name
@@ -563,11 +563,11 @@ class Filters(threading.Thread):
     def __set_game_select(self, w, game):
         if (game == 'all'):
             if (w.get_active()):
-                for cb in self.cbGames.values():
+                for cb in list(self.cbGames.values()):
                     cb.set_active(True)
         elif (game == 'none'):
             if (w.get_active()):
-                for cb in self.cbGames.values():
+                for cb in list(self.cbGames.values()):
                     cb.set_active(False)
         else:
             self.games[game] = w.get_active()
@@ -582,11 +582,11 @@ class Filters(threading.Thread):
     def __set_position_select(self, w, pos):      
         if (pos == 'all'):
             if (w.get_active()):
-                for cb in self.cbPositions.values():
+                for cb in list(self.cbPositions.values()):
                     cb.set_active(True)
         elif (pos == 'none'):
             if (w.get_active()):
-                for cb in self.cbPositions.values():
+                for cb in list(self.cbPositions.values()):
                     cb.set_active(False)
         else:
             self.positions[pos] = w.get_active()
@@ -626,16 +626,16 @@ class Filters(threading.Thread):
             self.callback['cards'](card)
 
     def __set_cards(self, w, val):
-        print "DEBUG: val: %s = %s" %(val, w.get_active())
+        print("DEBUG: val: %s = %s" %(val, w.get_active()))
 
     def __set_currency_select(self, w, currency):
         if (currency == 'all'):
             if (w.get_active()):
-                for cb in self.cbCurrencies.values():
+                for cb in list(self.cbCurrencies.values()):
                     cb.set_active(True)
         elif (currency == 'none'):
             if (w.get_active()):
-                for cb in self.cbCurrencies.values():
+                for cb in list(self.cbCurrencies.values()):
                     cb.set_active(False)
         else:
             self.currencies[currency] = w.get_active()
@@ -677,7 +677,7 @@ class Filters(threading.Thread):
         elif limit == "all":
             if self.limits[limit]:
                 if self.num_limit_types == 1:
-                    for cb in self.cbLimits.values():
+                    for cb in list(self.cbLimits.values()):
                         cb.set_active(True)
                 else:
                     if self.cbFL is not None:
@@ -704,7 +704,7 @@ class Filters(threading.Thread):
             #       needed because the overall limit checkbox may 
             #       not be set, or num_limit_types == 1
             #
-                for cb in self.cbLimits.values():
+                for cb in list(self.cbLimits.values()):
                         cb.set_active(False)
         elif limit == "fl":
             if not self.limits[limit]:
@@ -712,13 +712,13 @@ class Filters(threading.Thread):
                 # this stops turning one off from cascading into 'fl' box off
                 # and then all fl limits being turned off
                 all_fl_on = True
-                for cb in self.cbLimits.values():
+                for cb in list(self.cbLimits.values()):
                     t = cb.get_children()[0].get_text()
                     if (t.isdigit() or ("fl" in t and len(t) > 2)):
                         if not cb.get_active():
                             all_fl_on = False
             found = {'ring':False, 'tour':False}
-            for cb in self.cbLimits.values():
+            for cb in list(self.cbLimits.values()):
                 #print "cb label: ", cb.children()[0].get_text()
                 t = cb.get_children()[0].get_text()
                 if (t.isdigit() or ("fl" in t and len(t) > 2)):
@@ -739,13 +739,13 @@ class Filters(threading.Thread):
                 # this stops turning one off from cascading into 'nl' box off
                 # and then all nl limits being turned off
                 all_nl_on = True
-                for cb in self.cbLimits.values():
+                for cb in list(self.cbLimits.values()):
                     t = cb.get_children()[0].get_text()
                     if "nl" in t and len(t) > 2:
                         if not cb.get_active():
                             all_nl_on = False
             found = {'ring':False, 'tour':False}
-            for cb in self.cbLimits.values():
+            for cb in list(self.cbLimits.values()):
                 t = cb.get_children()[0].get_text()
                 if "nl" in t and len(t) > 2:
                     if self.limits[limit] or all_nl_on:
@@ -765,13 +765,13 @@ class Filters(threading.Thread):
                 # this stops turning one off from cascading into 'nl' box off
                 # and then all nl limits being turned off
                 all_nl_on = True
-                for cb in self.cbLimits.values():
+                for cb in list(self.cbLimits.values()):
                     t = cb.get_children()[0].get_text()
                     if "pl" in t and len(t) > 2:
                         if not cb.get_active():
                             all_nl_on = False
             found = {'ring':False, 'tour':False}
-            for cb in self.cbLimits.values():
+            for cb in list(self.cbLimits.values()):
                 t = cb.get_children()[0].get_text()
                 if "pl" in t and len(t) > 2:
                     if self.limits[limit] or all_nl_on:
@@ -788,13 +788,13 @@ class Filters(threading.Thread):
         elif limit == "cn":
             if not self.limits[limit]:
                 all_cn_on = True
-                for cb in self.cbLimits.values():
+                for cb in list(self.cbLimits.values()):
                     t = cb.get_children()[0].get_text()
                     if "cn" in t and len(t) > 2:
                         if not cb.get_active():
                             all_cn_on = False
             found = {'ring':False, 'tour':False}
-            for cb in self.cbLimits.values():
+            for cb in list(self.cbLimits.values()):
                 t = cb.get_children()[0].get_text()
                 if "cn" in t and len(t) > 2:
                     if self.limits[limit] or all_cn_on:
@@ -812,7 +812,7 @@ class Filters(threading.Thread):
             log.debug("set", limit, "to", self.limits[limit])
             if self.limits[limit]:
                 self.type = "ring"
-                for cb in self.cbLimits.values():
+                for cb in list(self.cbLimits.values()):
                     #print "cb label: ", cb.children()[0].get_text()
                     if self.types[cb.get_children()[0].get_text()] == 'tour':
                         cb.set_active(False)
@@ -820,7 +820,7 @@ class Filters(threading.Thread):
             log.debug( "set", limit, "to", self.limits[limit] )
             if self.limits[limit]:
                 self.type = "tour"
-                for cb in self.cbLimits.values():
+                for cb in list(self.cbLimits.values()):
                     #print "cb label: ", cb.children()[0].get_text()
                     if self.types[cb.get_children()[0].get_text()] == 'ring':
                         cb.set_active(False)
@@ -955,7 +955,7 @@ class Filters(threading.Thread):
                 vbox1.pack_start(hbox, False, True, 0)
                 self.createTourneyTypeLine(hbox, line[0])
         else:
-            print _("INFO: No tourney types returned from database")
+            print(_("INFO: No tourney types returned from database"))
             log.info(_("No tourney types returned from database"))
     #end def fillTourneyTypesFrame
 
@@ -998,7 +998,7 @@ class Filters(threading.Thread):
                 vbox3.pack_start(hbox, False, False, 0)
                 self.cbNoGames = self.createGameLine(hbox, 'none', self.filterText['gamesnone'])
         else:
-            print _("INFO: No games returned from database")
+            print(_("INFO: No games returned from database"))
             log.info(_("No games returned from database"))
     #end def fillGamesFrame
     
@@ -1060,7 +1060,7 @@ class Filters(threading.Thread):
                 self.cbAllPositions = self.createPositionLine(hbox, 'all', self.filterText['positionsall'])
                 self.cbNoPositions = self.createPositionLine(hbox, 'none', self.filterText['positionsnone'])
         else:
-            print(_("INFO") + ": " + _("No positions returned from database"))
+            print((_("INFO") + ": " + _("No positions returned from database")))
             log.info(_("No positions returned from database"))
         
     #end def fillSitesFrame(self, vbox, display):
@@ -1113,7 +1113,7 @@ class Filters(threading.Thread):
             for line in result:
                 hbox = gtk.HBox(False, 0)
                 vbox1.pack_start(hbox, False, True, 0)
-                if (self.currencyName.has_key(line[0])):
+                if (line[0] in self.currencyName):
                     cname = self.currencyName[line[0]]
                 else:
                     cname = line[0]
@@ -1231,7 +1231,7 @@ class Filters(threading.Thread):
                            self.cbHP = self.createLimitLine(hbox, 'hp', self.filterText['limitsHP'])
                        dest = vbox2  # for ring/tour buttons
         else:
-            print _("INFO: No games returned from database")
+            print(_("INFO: No games returned from database"))
             log.info(_("No games returned from database"))
 
         if "Type" in display and display["Type"] == True and self.found['ring'] and self.found['tour']:
@@ -1573,20 +1573,20 @@ class Filters(threading.Thread):
     def __toggle_box(self, widget, entry):
         if (entry == "all"):
             if (widget.get_label() == _("hide all")):
-                for entry in self.boxes.keys():
+                for entry in list(self.boxes.keys()):
                     if (self.boxes[entry].props.visible):
                         self.__toggle_box(widget, entry)
                         widget.set_label(_("show all"))
             else:
-                for entry in self.boxes.keys():
+                for entry in list(self.boxes.keys()):
                     if (not self.boxes[entry].props.visible):
                         self.__toggle_box(widget, entry)
                     widget.set_label(_("hide all"))
         elif self.boxes[entry].props.visible:
             self.boxes[entry].hide()
             self.toggles[entry].set_label(_("show"))
-            for entry in self.boxes.keys():
-                if (self.display.has_key(entry) and
+            for entry in list(self.boxes.keys()):
+                if (entry in self.display and
                     self.display[entry] and
                     self.boxes[entry].props.visible):
                     break
@@ -1595,8 +1595,8 @@ class Filters(threading.Thread):
         else:
             self.boxes[entry].show()
             self.toggles[entry].set_label(_("hide"))
-            for entry in self.boxes.keys():
-                if (self.display.has_key(entry) and
+            for entry in list(self.boxes.keys()):
+                if (entry in self.display and
                     self.display[entry] and
                     not self.boxes[entry].props.visible):
                     break

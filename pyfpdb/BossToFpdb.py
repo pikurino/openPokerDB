@@ -56,7 +56,7 @@ class Boss(HandHistoryConverter):
                   }
 
     # Static regexes
-    re_GameInfo     = re.compile("""<HISTORY\sID="(?P<HID>[0-9]+)"\s
+    re_GameInfo     = re.compile(r"""<HISTORY\sID="(?P<HID>[0-9]+)"\s
                                     SESSION="session(?P<SESSIONID>[0-9]+)\.xml"\s
                                     TABLE="(?P<TABLE>.+?)"\s
                                     GAME="(?P<GAME>GAME_THM|GAME_OMA|GAME_FCD|GAME_OMAHL)"\sGAMETYPE="[_a-zA-Z]+"\s
@@ -271,7 +271,7 @@ class Boss(HandHistoryConverter):
 #    streets PREFLOP, PREDRAW, and THIRD are special cases beacause
 #    we need to grab hero's cards
         for street in ('PREFLOP', 'DEAL'):
-            if street in hand.streets.keys():
+            if street in list(hand.streets.keys()):
                 m = self.re_HeroCards.finditer(hand.streets[street])
                 newcards = []
                 for found in m:
@@ -384,7 +384,7 @@ class Boss(HandHistoryConverter):
                 bet = action.group('BET')
                 player = action.group('PNAME')
                 hand.checkPlayerExists(action.group('PNAME'), 'addAllIn')
-                bet = bet.replace(u',', u'') #some sites have commas
+                bet = bet.replace(',', '') #some sites have commas
                 Ai = Decimal(bet)
                 Bp = hand.lastBet[street]
                 if Ai <= Bp:
@@ -394,18 +394,18 @@ class Boss(HandHistoryConverter):
                 else:
                     hand.addRaiseTo( street, player, bet)
             else:
-                print (_("DEBUG:") + _("Unimplemented %s: '%s' '%s'") % ("readAction", action.group('PNAME'), action.group('ATYPE')))
+                print((_("DEBUG:") + _("Unimplemented %s: '%s' '%s'") % ("readAction", action.group('PNAME'), action.group('ATYPE'))))
         self.calculateAntes(street, hand)
                 
     def calculateAntes(self, street, hand):
         if street in ('PREFLOP', 'DEAL', 'THIRD'):
             contributed = sum(hand.pot.committed.values()) + sum(hand.pot.common.values())
-            committed = sorted([ (v,k) for (k,v) in hand.pot.committed.items()])
+            committed = sorted([ (v,k) for (k,v) in list(hand.pot.committed.items())])
             try:
                 lastbet = committed[-1][0] - committed[-2][0]
                 if lastbet > 0: # uncalled
                     contributed -= lastbet
-            except IndexError, e:
+            except IndexError as e:
                 log.error(_("BossToFpdb.calculateAntes(): '%s': Major failure while calculating pot: '%s'") % (self.handid, e))
                 raise FpdbParseError
             m = self.re_FlopPot.search(hand.handText)

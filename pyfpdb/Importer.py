@@ -21,16 +21,14 @@ _ = L10n.get_translation()
 #    Standard Library modules
 
 import os  # todo: remove this once import_dir is in fpdb_import
-from time import time, sleep, clock
+from time import time, sleep
 import datetime
-import Queue
+import queue
 import threading
 import shutil
 import re
 
 import logging
-
-import gtk
 
 #    fpdb/FreePokerTools modules
 import Database
@@ -51,6 +49,8 @@ class Importer:
         self.config     = config
         self.sql        = sql
         self.parent     = parent
+        self.progress_callback = None
+        self.progress   = None
 
         self.idsite = IdentifySite.IdentifySite(config)
 
@@ -85,10 +85,9 @@ class Importer:
         self.database = Database.Database(self.config, sql = self.sql)
         self.writerdbs = []
         self.settings.setdefault("threads", 1) # value set by GuiBulkImport
-        for i in xrange(self.settings['threads']):
+        for i in range(self.settings['threads']):
             self.writerdbs.append( Database.Database(self.config, sql = self.sql) )
 
-        clock() # init clock in windows
 
     #Set functions
     def setCallHud(self, value):
@@ -109,7 +108,7 @@ class Importer:
     def setThreads(self, value):
         self.settings['threads'] = value
         if self.settings["threads"] > len(self.writerdbs):
-            for i in xrange(self.settings['threads'] - len(self.writerdbs)):
+            for i in range(self.settings['threads'] - len(self.writerdbs)):
                 self.writerdbs.append( Database.Database(self.config, sql = self.sql) )
 
     def setDropIndexes(self, value):
@@ -153,10 +152,6 @@ class Importer:
         """FPDBFile"""
         now = datetime.datetime.utcnow()
         file = os.path.splitext(os.path.basename(fpdbfile.path))[0]
-        try: #TODO: this is a dirty hack. GBI needs it, GAI fails with it.
-            file = unicode(file, "utf8", "replace")
-        except TypeError:
-            pass
         fpdbfile.fileId = self.database.storeFile([file, fpdbfile.site.name, now, now, 0, 0, 0, 0, 0, 0, False])
         self.database.commit()
 
@@ -191,12 +186,8 @@ class Importer:
     # Called from GuiBulkImport to add a file or directory. Bulk import never monitors
     def addBulkImportImportFileOrDir(self, inputPath, site = "auto"):
         """Add a file or directory for bulk import"""
-        #for windows platform, force os.walk variable to be unicode
-        # see fpdb-main post 9th July 2011
-        if self.config.posix:
-            pass
-        else:
-            inputPath = unicode(inputPath)
+        # force the path to unicode; see fpdb-main post 9th July 2011
+        inputPath = str(inputPath)
 
         # TODO: only add sane files?
         if os.path.isdir(inputPath):
@@ -265,8 +256,8 @@ class Importer:
         moveimportedfiles = False #TODO need to wire this into GUI and make it prettier
         movefailedfiles = False #TODO and this too
         
-        #prepare progress popup window
-        ProgressDialog = ProgressBar(len(self.filelist), self.parent)
+        #prepare progress reporting: a subscribed GUI reads this, nothing is drawn here
+        self.progress = ProgressDialog = ProgressBar(len(self.filelist))
         
         for f in self.filelist:
             filecount = filecount + 1
@@ -304,7 +295,7 @@ class Importer:
         #if fpdbfile.ftype == "both":
             #FIXME: Do something useful here, probably site specific
         #    pass
-        print "DEBUG: _import_summary_file.ttime: %.3f %s" % (ttime, fpdbfile.ftype)
+        print("DEBUG: _import_summary_file.ttime: %.3f %s" % (ttime, fpdbfile.ftype))
         return (stored, duplicates, partial, errors, ttime)
 
 
@@ -379,7 +370,7 @@ class Importer:
             else:
                 self.removeFromFileList[f] = True
 
-        self.addToDirList = filter(lambda x: self.addImportDirectory(x, True, self.addToDirList[x][0], self.addToDirList[x][1]), self.addToDirList)
+        self.addToDirList = [x for x in self.addToDirList if self.addImportDirectory(x, True, self.addToDirList[x][0], self.addToDirList[x][1])]
 
         for file in self.removeFromFileList:
             if file in self.filelist:
@@ -479,9 +470,9 @@ class Importer:
                 if self.callHud:
                     for hid in to_hud:
                         try:
-                            print _("fpdb_import: sending hand to hud"), hid, "pipe =", self.caller.pipe_to_hud
+                            print(_("fpdb_import: sending hand to hud"), hid, "pipe =", self.caller.pipe_to_hud)
                             self.caller.pipe_to_hud.stdin.write("%s" % (hid) + os.linesep)
-                        except IOError, e:
+                        except IOError as e:
                             log.error(_("Failed to send hand to HUD: %s") % e)
 
                 partial = getattr(hhc, 'numPartial')
@@ -544,11 +535,11 @@ class Importer:
                     conv = obj(db=self.database, config=self.config, siteName=fpdbfile.site.name, summaryText=summaryText, in_path = fpdbfile.path)
                     self.database.resetBulkCache(False)
                     conv.insertOrUpdate(printtest = self.settings['testData'])
-                except FpdbParseError, e:
+                except FpdbParseError as e:
                     log.error(_("Summary import parse error in file: %s") % fpdbfile.path)
                     errors += 1
                 if j != 1:
-                    print _("Finished importing %s/%s tournament summaries") %(j, len(summaryTexts))
+                    print(_("Finished importing %s/%s tournament summaries") %(j, len(summaryTexts)))
                 imported = j
             ####Lock Placeholder####
 
@@ -556,106 +547,44 @@ class Importer:
         return (imported - errors, duplicates, partial, errors, ttime)
 
     def progressNotify(self):
-        "A callback to the interface while events are pending"
-        while gtk.events_pending():
-            gtk.main_iteration(False)
-        
+        """Hand the current progress to the interface, if one subscribed.
+
+        This used to pump the GTK main loop from inside the importer; the engine must stay
+        toolkit-free, so a GUI passes a callback instead (see Importer.setProgressCallback).
+        """
+        if self.progress_callback:
+            self.progress_callback(self.progress)
+
+    def setProgressCallback(self, callback):
+        """`callback(ProgressBar)` is invoked once per file while an import runs."""
+        self.progress_callback = callback
+
+
 class ProgressBar:
 
-    """
-    Popup window to show progress
-    
-    Init method sets up total number of expected iterations
-    If no parent is passed to init, command line
-    mode assumed, and does not create a progress bar
-    """
-    
-    def __del__(self):
-        
-        if self.parent:
-            self.progress.destroy()
+    """Headless progress model: counts files done versus expected.
 
+    The GTK popup this class used to build is gone -- the engine reports numbers and a GUI
+    (or a CLI loop) decides how to show them. `sum` grows if more files turn up than expected,
+    which is what the old `if self.fraction > self.sum` branch was for.
+    """
+
+    def __init__(self, total):
+        self.sum = total
+        self.fraction = 0
+        self.file = None
+        self.handcount = 0
 
     def progress_update(self, file, handcount):
-
-        if not self.parent:
-            #nothing to do
-            return
-            
         self.fraction += 1
-        #update sum if fraction exceeds expected total number of iterations
-        if self.fraction > self.sum: 
-            sum = self.fraction
-        
-        #progress bar total set to 1 plus the number of items,to prevent it
-        #reaching 100% prior to processing fully completing
+        if self.fraction > self.sum:
+            self.sum = self.fraction
+        self.file = file
+        self.handcount = handcount
 
-        progress_percent = float(self.fraction) / (float(self.sum) + 1.0)
-        progress_text = (self.title + " " 
-                            + str(self.fraction) + " / " + str(self.sum))
+    def fraction_done(self):
+        # Total is 1 + items so a bar never shows 100% before the last file is processed.
+        return float(self.fraction) / (float(self.sum) + 1.0)
 
-        self.pbar.set_fraction(progress_percent)
-        self.pbar.set_text(progress_text)
-        
-        self.handcount.set_text(_("Database Statistics") + " - " + _("Number of Hands:") + " " + handcount)
-        
-        now = datetime.datetime.now()
-        now_formatted = now.strftime("%H:%M:%S")
-        self.progresstext.set_text(now_formatted + " - "+self.title+ " " +file+"\n")
-
-
-    def __init__(self, sum, parent):
-
-        self.parent = parent
-        if not self.parent:
-            #no parent is passed, assume this is being run from the 
-            #command line, so return immediately
-            return
-        
-        self.fraction = 0
-        self.sum = sum
-        self.title = _("Importing")
-            
-        self.progress = gtk.Window(gtk.WINDOW_TOPLEVEL)
-        self.progress.set_size_request(500,150)
-
-        self.progress.set_resizable(False)
-        self.progress.set_modal(True)
-        self.progress.set_transient_for(self.parent)
-        self.progress.set_decorated(True)
-        self.progress.set_deletable(False)
-        self.progress.set_title(self.title)
-        
-        vbox = gtk.VBox(False, 5)
-        vbox.set_border_width(10)
-        self.progress.add(vbox)
-        vbox.show()
-  
-        align = gtk.Alignment(0, 0, 0, 0)
-        vbox.pack_start(align, False, True, 2)
-        align.show()
-
-        self.pbar = gtk.ProgressBar()
-        align.add(self.pbar)
-        self.pbar.show()
-
-        align = gtk.Alignment(0, 0, 0, 0)
-        vbox.pack_start(align, False, True, 2)
-        align.show()
-
-        self.handcount = gtk.Label()
-        align.add(self.handcount)
-        self.handcount.show()
-        
-        align = gtk.Alignment(0, 0, 0, 0)
-        vbox.pack_start(align, False, True, 0)
-        align.show()
-        
-        self.progresstext = gtk.Label()
-        self.progresstext.set_line_wrap(True)
-        self.progresstext.set_selectable(True)
-        align.add(self.progresstext)
-        self.progresstext.show()
-        
-        self.progress.show()
-
+    def text(self):
+        return "%d / %d  %s  hands: %s" % (self.fraction, self.sum, self.file, self.handcount)

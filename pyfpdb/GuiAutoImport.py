@@ -42,8 +42,7 @@ if __name__ == "__main__":
 # logging has been set up in fpdb.py or HUD_main.py, use their settings:
 log = logging.getLogger("importer")
 
-if os.name == "nt":
-    import win32console
+import win32console
 
 
 class GuiAutoImport (threading.Thread):
@@ -206,24 +205,6 @@ class GuiAutoImport (threading.Thread):
             params = self.config.get_site_parameters(site)
             if params['enabled'] == True:
                 print (_("DEBUG:") + " " + _("Detecting hand history directory for site: '%s'") % site)
-                if os.name == 'posix':
-                    if self.posix_detect_hh_dirs(site):
-                        #data[1].set_text(dia_chooser.get_filename())
-                        self.input_settings[site][0]
-                        pass
-                elif os.name == 'nt':
-                    # Sorry
-                    pass
-
-    def posix_detect_hh_dirs(self, site):
-        defaults = {
-                    'PokerStars': '~/.wine/drive_c/Program Files/PokerStars/HandHistory',
-                   }
-        if site == 'PokerStars':
-            directory = os.path.expanduser(defaults[site])
-            for file in [file for file in os.listdir(directory) if not file in [".",".."]]:
-                print file
-        return False
 
     def startClicked(self, widget, data):
         """runs when user clicks start on auto import tab"""
@@ -256,21 +237,15 @@ class GuiAutoImport (threading.Thread):
                         path = self.config.pyfpdb_path
                         command = "HUD_main.exe"
                         bs = 0
-                    elif os.name == 'nt':
+                    else:
                         path = sys.path[0].replace('\\','\\\\')
                         if win32console.GetConsoleWindow() == 0:
                             command = 'pythonw "'+path+'\\HUD_main.pyw" ' + self.settings['cl_options']
                         else:
                             command = 'python "'+path+'\\HUD_main.pyw" ' + self.settings['cl_options']
                         bs = 0
-                    else:
-                        command = os.path.join(sys.path[0], 'HUD_main.pyw')
-                        command = [command, ] + string.split(self.settings['cl_options'])
-                        bs = 1
-
-                        print _("opening pipe to HUD")
                     try:
-                        if self.config.install_method == "exe" or (os.name == "nt" and win32console.GetConsoleWindow() == 0):
+                        if self.config.install_method == "exe" or win32console.GetConsoleWindow() == 0:
                             self.pipe_to_hud = subprocess.Popen(command, bufsize=bs,
                                                                 stdin=subprocess.PIPE,
                                                                 stdout=subprocess.PIPE,  # needed for pythonw / py2exe
@@ -384,8 +359,7 @@ if __name__== "__main__":
     config = Configuration.Config()
 
     settings = {}
-    if os.name == 'nt': settings['os'] = 'windows'
-    else:               settings['os'] = 'linuxmac'
+    settings['os'] = 'windows'
 
     settings.update(config.get_db_parameters())
     settings.update(config.get_import_parameters())

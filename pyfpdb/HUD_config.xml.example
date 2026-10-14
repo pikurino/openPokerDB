@@ -141,7 +141,7 @@
     aggregate_hero_tourney_stats="False"
     hero_aggregation_level_multiplier="1"
 
-    label="FPDB"
+    label="OpenPokerDB"
     
     card_ht="39"
     card_wd="28"
@@ -1601,6 +1601,7 @@
         <hhc site="Cake" converter="CakeToFpdb"/>
         <hhc site="Entraction" converter="EntractionToFpdb"/>
         <hhc site="BetOnline" converter="BetOnlineToFpdb"/>
+        <hhc site="GGPoker" converter="GGPokerToFpdb"/>
     </hhcs>
 
 

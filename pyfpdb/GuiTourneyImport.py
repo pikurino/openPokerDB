@@ -187,13 +187,8 @@ class SummaryImporter:
 
     def addImportFileOrDir(self, inputPath, site = "PokerStars"):
         
-        #for windows platform, force os.walk variable to be unicode
-        # see fpdb-main post 9th July 2011
-        
-        if self.config.posix:
-            pass
-        else:
-            inputPath = unicode(inputPath)
+        # force the path to unicode; see fpdb-main post 9th July 2011
+        inputPath = unicode(inputPath)
             
         tsc = self.config.hhcs[site].summaryImporter
         if os.path.isdir(inputPath):

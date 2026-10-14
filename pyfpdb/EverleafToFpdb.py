@@ -35,10 +35,10 @@ class Everleaf(HandHistoryConverter):
     
     substitutions = {
                      'LEGAL_ISO' : "USD|EUR|GBP|CAD|FPP",       # legal ISO currency codes
-                            'LS' : u"\$|\u20AC|\xe2\x82\xac|\x80|\u02c6|",  # legal currency symbols - Euro(cp1252, utf-8) #TODO change \x80 to \x20\x80, update all regexes accordingly
+                            'LS' : "\\$|\u20AC|\xe2\x82\xac|\x80|\u02c6|",  # legal currency symbols - Euro(cp1252, utf-8) #TODO change \x80 to \x20\x80, update all regexes accordingly
                         'PLAYERS': r'(?P<PNAME>.+?)',
-                           'TAB' : u"-\u2013'\s\da-zA-Z#_()",     # legal characters for tablename
-                           'NUM' : u".,\d",                     # legal characters in number format
+                           'TAB' : "-\u2013'\\s\\da-zA-Z#_()",     # legal characters for tablename
+                           'NUM' : r".,\d",                     # legal characters in number format
                     }
     
     Lim_Blinds = {      '0.04': ('0.01', '0.02'),    '0.10': ('0.02', '0.05'),
@@ -49,17 +49,17 @@ class Everleaf(HandHistoryConverter):
     # Static regexes
     re_SplitHands  = re.compile(r"\n\n\n+")
     re_TailSplitHands  = re.compile(r"(\n\n\n+)")
-    re_GameInfo    = re.compile(ur"^(Blinds )? ?(?P<CURRENCY>[%(LS)s]?)(?P<SB>[%(NUM)s]+) ?/ ? ?[%(LS)s]?(?P<BB>[%(NUM)s]+) (?P<LIMIT>NL|PL|) ?(?P<GAME>(Hold\'em|Omaha|7\sCard\sStud))" % substitutions, re.MULTILINE)
-    re_HandInfo    = re.compile(ur".*\n(.*#|.* partie )(?P<HID>[0-9]+).*(\n|\n\n)(Blinds )? ?(?P<CURRENCY>[%(LS)s])?(?P<SB>[%(NUM)s]+) ?/ ?(?:[%(LS)s])?(?P<BB>[%(NUM)s]+) (?P<GAMETYPE>.+?)(\s-\s(?P<MAX>\d+)\sMax)? - (?P<DATETIME>\d\d\d\d/\d\d/\d\d - \d\d:\d\d:\d\d)\nTable (?P<TABLE>.+$)" % substitutions, re.MULTILINE) 
-    re_Button      = re.compile(ur"^Seat (?P<BUTTON>\d+) is the button$", re.MULTILINE)
-    re_PlayerInfo  = re.compile(ur"""^Seat\s(?P<SEAT>[0-9]+):\s(?P<PNAME>.*)\s+
+    re_GameInfo    = re.compile(r"^(Blinds )? ?(?P<CURRENCY>[%(LS)s]?)(?P<SB>[%(NUM)s]+) ?/ ? ?[%(LS)s]?(?P<BB>[%(NUM)s]+) (?P<LIMIT>NL|PL|) ?(?P<GAME>(Hold\'em|Omaha|7\sCard\sStud))" % substitutions, re.MULTILINE)
+    re_HandInfo    = re.compile(r".*\n(.*#|.* partie )(?P<HID>[0-9]+).*(\n|\n\n)(Blinds )? ?(?P<CURRENCY>[%(LS)s])?(?P<SB>[%(NUM)s]+) ?/ ?(?:[%(LS)s])?(?P<BB>[%(NUM)s]+) (?P<GAMETYPE>.+?)(\s-\s(?P<MAX>\d+)\sMax)? - (?P<DATETIME>\d\d\d\d/\d\d/\d\d - \d\d:\d\d:\d\d)\nTable (?P<TABLE>.+$)" % substitutions, re.MULTILINE) 
+    re_Button      = re.compile(r"^Seat (?P<BUTTON>\d+) is the button$", re.MULTILINE)
+    re_PlayerInfo  = re.compile(r"""^Seat\s(?P<SEAT>[0-9]+):\s(?P<PNAME>.*)\s+
                                     \(
                                       \s+[%(LS)s]?\s?(?P<CASH>[%(NUM)s]+)
                                           (\s(USD|EURO|EUR|Chips)?(new\splayer|All-in)?)?
                                   \s?\)$
                                   """ % substitutions, re.MULTILINE|re.VERBOSE)
-    re_Board       = re.compile(ur"\[ (?P<CARDS>.+) \]")
-    re_TourneyInfoFromFilename = re.compile(ur".*TID_(?P<TOURNO>[0-9]+)-(?P<TABLE>[0-9]+).*\.txt")
+    re_Board       = re.compile(r"\[ (?P<CARDS>.+) \]")
+    re_TourneyInfoFromFilename = re.compile(r".*TID_(?P<TOURNO>[0-9]+)-(?P<TABLE>[0-9]+).*\.txt")
 
 
     def compilePlayerRegexs(self, hand):
@@ -68,17 +68,17 @@ class Everleaf(HandHistoryConverter):
             # we need to recompile the player regexs.
             self.compiledPlayers = players
             
-            self.re_PostSB          = re.compile(ur"^%(PLAYERS)s: posts small blind \[ ?[%(LS)s]? (?P<SB>[%(NUM)s]+)\s?.*\]$" % self.substitutions, re.MULTILINE)
-            self.re_PostBB          = re.compile(ur"^%(PLAYERS)s: posts big blind \[ ?[%(LS)s]? (?P<BB>[%(NUM)s]+)\s?.*\]$" % self.substitutions, re.MULTILINE)
-            self.re_PostBoth        = re.compile(ur"^%(PLAYERS)s: posts both blinds \[ ?[%(LS)s]? (?P<SBBB>[%(NUM)s]+)\s.*\]$" % self.substitutions, re.MULTILINE)
-            self.re_Antes           = re.compile(ur"^%(PLAYERS)s: posts ante \[ ?[%(LS)s]? (?P<ANTE>[%(NUM)s]+)\s.*\]$" % self.substitutions, re.MULTILINE)
-            self.re_BringIn         = re.compile(ur"^%(PLAYERS)s posts bring-in  ?[%(LS)s]?\s?(?P<BRINGIN>[%(NUM)s]+)\." % self.substitutions, re.MULTILINE)
-            self.re_Completes       = re.compile(ur"^%(PLAYERS)s completes to  ?[%(LS)s]?\s?(?P<BET>[%(NUM)s]+)\." % self.substitutions, re.MULTILINE)
-            self.re_HeroCards       = re.compile(ur"^Dealt to %(PLAYERS)s \[ (?P<CARDS>.*) \]$" % self.substitutions, re.MULTILINE)
+            self.re_PostSB          = re.compile(r"^%(PLAYERS)s: posts small blind \[ ?[%(LS)s]? (?P<SB>[%(NUM)s]+)\s?.*\]$" % self.substitutions, re.MULTILINE)
+            self.re_PostBB          = re.compile(r"^%(PLAYERS)s: posts big blind \[ ?[%(LS)s]? (?P<BB>[%(NUM)s]+)\s?.*\]$" % self.substitutions, re.MULTILINE)
+            self.re_PostBoth        = re.compile(r"^%(PLAYERS)s: posts both blinds \[ ?[%(LS)s]? (?P<SBBB>[%(NUM)s]+)\s.*\]$" % self.substitutions, re.MULTILINE)
+            self.re_Antes           = re.compile(r"^%(PLAYERS)s: posts ante \[ ?[%(LS)s]? (?P<ANTE>[%(NUM)s]+)\s.*\]$" % self.substitutions, re.MULTILINE)
+            self.re_BringIn         = re.compile(r"^%(PLAYERS)s posts bring-in  ?[%(LS)s]?\s?(?P<BRINGIN>[%(NUM)s]+)\." % self.substitutions, re.MULTILINE)
+            self.re_Completes       = re.compile(r"^%(PLAYERS)s completes to  ?[%(LS)s]?\s?(?P<BET>[%(NUM)s]+)\." % self.substitutions, re.MULTILINE)
+            self.re_HeroCards       = re.compile(r"^Dealt to %(PLAYERS)s \[ (?P<CARDS>.*) \]$" % self.substitutions, re.MULTILINE)
             # ^%s(?P<ATYPE>: bets| checks| raises| calls| folds)(\s\[(?:\$| €|) (?P<BET>[.,\d]+) (USD|EURO|EUR|Chips)\])?
-            self.re_Action          = re.compile(ur"^%(PLAYERS)s(?P<ATYPE>: bets| checks| raises| calls| folds)(\s\[(?: ?[%(LS)s]?) (?P<BET>[%(NUM)s]+)\s?(USD|EURO|EUR|Chips|)\])?" % self.substitutions, re.MULTILINE)
-            self.re_ShowdownAction  = re.compile(ur"^%(PLAYERS)s (?P<SHOWED>shows|mucks) \[ (?P<CARDS>.*) \] (?P<STRING>.*)" % self.substitutions, re.MULTILINE)
-            self.re_CollectPot      = re.compile(ur"^%(PLAYERS)s wins ( (high|low) )?\(?\s?[%(LS)s]?\s?(?P<POT>[%(NUM)s]+)\s?(USD|EURO|EUR|chips)?\)?" % self.substitutions, re.MULTILINE)
+            self.re_Action          = re.compile(r"^%(PLAYERS)s(?P<ATYPE>: bets| checks| raises| calls| folds)(\s\[(?: ?[%(LS)s]?) (?P<BET>[%(NUM)s]+)\s?(USD|EURO|EUR|Chips|)\])?" % self.substitutions, re.MULTILINE)
+            self.re_ShowdownAction  = re.compile(r"^%(PLAYERS)s (?P<SHOWED>shows|mucks) \[ (?P<CARDS>.*) \] (?P<STRING>.*)" % self.substitutions, re.MULTILINE)
+            self.re_CollectPot      = re.compile(r"^%(PLAYERS)s wins ( (high|low) )?\(?\s?[%(LS)s]?\s?(?P<POT>[%(NUM)s]+)\s?(USD|EURO|EUR|chips)?\)?" % self.substitutions, re.MULTILINE)
 
     def readSupportedGames(self):
         return [
@@ -131,7 +131,7 @@ or None if we fail to get the info """
                      'Razz' : ('stud','razz'),
               '7 Card Stud' : ('stud','studhi')
                }
-        currencies = { u'ˆ':'EUR', u'€':'EUR', '$':'USD', '':'T$'}
+        currencies = { 'ˆ':'EUR', '€':'EUR', '$':'USD', '':'T$'}
         if 'LIMIT' in mg:
             info['limitType'] = limits[mg['LIMIT']]
         if 'GAME' in mg:
@@ -175,7 +175,7 @@ or None if we fail to get the info """
         if m.group('MAX'):
             hand.maxseats = int(m.group('MAX'))     # assume 4-max unless we have proof it's a larger/smaller game, since everleaf doesn't give seat max info
         
-        currencies = { u'ˆ':'EUR', u'€':'EUR', '$':'USD', '':'T$'}
+        currencies = { 'ˆ':'EUR', '€':'EUR', '$':'USD', '':'T$'}
         mg = m.groupdict()
         if mg['CURRENCY'] is not None:
             hand.gametype['currency'] = currencies[mg['CURRENCY']]

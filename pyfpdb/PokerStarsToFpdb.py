@@ -37,12 +37,15 @@ class PokerStars(HandHistoryConverter):
     filetype = "text"
     codepage = ("utf8", "cp1252")
     siteId   = 2 # Needs to match id entry in Sites database
-    sym = {'USD': "\$", 'CAD': "\$", 'T$': "", "EUR": "\xe2\x82\xac", "GBP": "\£", "play": ""}         # ADD Euro, Sterling, etc HERE
+    sym = {'USD': r"\$", 'CAD': r"\$", 'T$': "", "EUR": "€", "GBP": "£", "play": ""}         # ADD Euro, Sterling, etc HERE
     substitutions = {
                      'LEGAL_ISO' : "USD|EUR|GBP|CAD|FPP",      # legal ISO currency codes
-                            'LS' : u"\$|\xe2\x82\xac|\u20ac|\£|", # legal currency symbols - Euro(cp1252, utf-8)
+                            # The trailing empty alternative is load-bearing: tournament lines
+                            # give amounts in chips with no symbol ("calls 60"), and dropping it
+                            # makes every bet/call/raise line fail to match.
+                            'LS' : r"\$|€|£|",
                            'PLYR': r'(?P<PNAME>.+?)',
-                            'CUR': u"(\$|\xe2\x82\xac|\u20ac||\£|)",
+                            'CUR': r"(\$|€|£|)",
                           'BRKTS': r'(\(button\) |\(small blind\) |\(big blind\) |\(button\) \(small blind\) |\(button\) \(big blind\) )?',
                     }
                     
@@ -100,10 +103,10 @@ class PokerStars(HandHistoryConverter):
                         'Mixed Hold\'em': 'mholdem',
                            'Triple Stud': '3stud'
                } # Legal mixed games
-    currencies = { u'€':'EUR', '$':'USD', '':'T$', u'£':'GBP' }
+    currencies = { '€':'EUR', '$':'USD', '':'T$', '£':'GBP' }
 
     # Static regexes
-    re_GameInfo     = re.compile(u"""
+    re_GameInfo     = re.compile(r"""
           (PokerStars|POKERSTARS)(?P<TITLE>\sGame|\sHand|\sHome\sGame|\sHome\sGame\sHand|Game|\sZoom\sHand|\sGAME)\s\#(?P<HID>[0-9]+):\s+
           (\{.*\}\s+)?(Tournament\s\#                # open paren of tournament info
           (?P<TOURNO>\d+),\s
@@ -128,24 +131,24 @@ class PokerStars(HandHistoryConverter):
           (?P<DATETIME>.*$)
         """ % substitutions, re.MULTILINE|re.VERBOSE)
 
-    re_PlayerInfo   = re.compile(u"""
+    re_PlayerInfo   = re.compile(r"""
           ^Seat\s(?P<SEAT>[0-9]+):\s
           (?P<PNAME>.*)\s
           \((%(LS)s)?(?P<CASH>[.0-9]+)\sin\schips\)""" % substitutions, 
           re.MULTILINE|re.VERBOSE)
 
-    re_HandInfo     = re.compile("""
+    re_HandInfo     = re.compile(r"""
           ^Table\s\'(?P<TABLE>.+?)\'\s
           ((?P<MAX>\d+)-max\s)?
           (?P<PLAY>\(Play\sMoney\)\s)?
           (Seat\s\#(?P<BUTTON>\d+)\sis\sthe\sbutton)?""", 
           re.MULTILINE|re.VERBOSE)
 
-    re_SplitHands   = re.compile('(?:\s?\n){2,}')
+    re_SplitHands   = re.compile('(?:\\s?\n){2,}')
     re_TailSplitHands   = re.compile('(\n\n\n+)')
-    re_Button       = re.compile('Seat #(?P<BUTTON>\d+) is the button', re.MULTILINE)
+    re_Button       = re.compile(r'Seat #(?P<BUTTON>\d+) is the button', re.MULTILINE)
     re_Board        = re.compile(r"\[(?P<CARDS>.+)\]")
-    re_DateTime     = re.compile("""(?P<Y>[0-9]{4})\/(?P<M>[0-9]{2})\/(?P<D>[0-9]{2})[\- ]+(?P<H>[0-9]+):(?P<MIN>[0-9]+):(?P<S>[0-9]+)""", re.MULTILINE)
+    re_DateTime     = re.compile(r"""(?P<Y>[0-9]{4})\/(?P<M>[0-9]{2})\/(?P<D>[0-9]{2})[\- ]+(?P<H>[0-9]+):(?P<MIN>[0-9]+):(?P<S>[0-9]+)""", re.MULTILINE)
     # revised re including timezone (not currently used):
     #re_DateTime     = re.compile("""(?P<Y>[0-9]{4})\/(?P<M>[0-9]{2})\/(?P<D>[0-9]{2})[\- ]+(?P<H>[0-9]+):(?P<MIN>[0-9]+):(?P<S>[0-9]+) \(?(?P<TZ>[A-Z0-9]+)""", re.MULTILINE)
 
@@ -166,13 +169,13 @@ class PokerStars(HandHistoryConverter):
                         (\s\[(?P<CARDS>.+?)\])?\s*$"""
                          %  substitutions, re.MULTILINE|re.VERBOSE)
     re_ShowdownAction   = re.compile(r"^%s: shows \[(?P<CARDS>.*)\]" % substitutions['PLYR'], re.MULTILINE)
-    re_ShownCards       = re.compile("^Seat (?P<SEAT>[0-9]+): %(PLYR)s %(BRKTS)s(?P<SHOWED>showed|mucked) \[(?P<CARDS>.*)\]( and (lost|won \(%(CUR)s(?P<POT>[.\d]+)\)) with (?P<STRING>.*))?" % substitutions, re.MULTILINE)
+    re_ShownCards       = re.compile(r"^Seat (?P<SEAT>[0-9]+): %(PLYR)s %(BRKTS)s(?P<SHOWED>showed|mucked) \[(?P<CARDS>.*)\]( and (lost|won \(%(CUR)s(?P<POT>[.\d]+)\)) with (?P<STRING>.*))?" % substitutions, re.MULTILINE)
     re_CollectPot       = re.compile(r"Seat (?P<SEAT>[0-9]+): %(PLYR)s %(BRKTS)s(collected|showed \[.*\] and won) \(%(CUR)s(?P<POT>[.\d]+)\)(, mucked| with.*|)" %  substitutions, re.MULTILINE)
     re_CollectPot2      = re.compile(r"^%(PLYR)s collected %(CUR)s(?P<POT>[.\d]+)" %  substitutions, re.MULTILINE)
-    re_WinningRankOne   = re.compile(u"^%(PLYR)s wins the tournament and receives %(CUR)s(?P<AMT>[\.0-9]+) - congratulations!$" %  substitutions, re.MULTILINE)
-    re_WinningRankOther = re.compile(u"^%(PLYR)s finished the tournament in (?P<RANK>[0-9]+)(st|nd|rd|th) place and received %(CUR)s(?P<AMT>[.0-9]+)\.$" %  substitutions, re.MULTILINE)
-    re_RankOther        = re.compile(u"^%(PLYR)s finished the tournament in (?P<RANK>[0-9]+)(st|nd|rd|th) place$" %  substitutions, re.MULTILINE)
-    re_Cancelled        = re.compile('Hand\scancelled', re.MULTILINE)
+    re_WinningRankOne   = re.compile(r"^%(PLYR)s wins the tournament and receives %(CUR)s(?P<AMT>[\.0-9]+) - congratulations!$" %  substitutions, re.MULTILINE)
+    re_WinningRankOther = re.compile(r"^%(PLYR)s finished the tournament in (?P<RANK>[0-9]+)(st|nd|rd|th) place and received %(CUR)s(?P<AMT>[.0-9]+)\.$" %  substitutions, re.MULTILINE)
+    re_RankOther        = re.compile("^%(PLYR)s finished the tournament in (?P<RANK>[0-9]+)(st|nd|rd|th) place$" %  substitutions, re.MULTILINE)
+    re_Cancelled        = re.compile(r'Hand\scancelled', re.MULTILINE)
 
     def compilePlayerRegexs(self,  hand):
         pass
@@ -289,9 +292,9 @@ class PokerStars(HandHistoryConverter):
                     else:
                         if info[key].find("$")!=-1:
                             hand.buyinCurrency="USD"
-                        elif info[key].find(u"£")!=-1:
+                        elif info[key].find("£")!=-1:
                             hand.buyinCurrency="GBP"
-                        elif info[key].find(u"€")!=-1:
+                        elif info[key].find("€")!=-1:
                             hand.buyinCurrency="EUR"
                         elif info[key].find("FPP")!=-1:
                             hand.buyinCurrency="PSFP"
@@ -302,7 +305,7 @@ class PokerStars(HandHistoryConverter):
                             log.error(_("PokerStarsToFpdb.readHandInfo: Failed to detect currency.") + " Hand ID: %s: '%s'" % (hand.handid, info[key]))
                             raise FpdbParseError
 
-                        info['BIAMT'] = info['BIAMT'].strip(u'$€£FPP')
+                        info['BIAMT'] = info['BIAMT'].strip('$€£FPP')
                         
                         if hand.buyinCurrency!="PSFP":
                             if info['BOUNTY'] != None:
@@ -310,13 +313,13 @@ class PokerStars(HandHistoryConverter):
                                 tmp = info['BOUNTY']
                                 info['BOUNTY'] = info['BIRAKE']
                                 info['BIRAKE'] = tmp
-                                info['BOUNTY'] = info['BOUNTY'].strip(u'$€£') # Strip here where it isn't 'None'
+                                info['BOUNTY'] = info['BOUNTY'].strip('$€£') # Strip here where it isn't 'None'
                                 hand.koBounty = int(100*Decimal(info['BOUNTY']))
                                 hand.isKO = True
                             else:
                                 hand.isKO = False
 
-                            info['BIRAKE'] = info['BIRAKE'].strip(u'$€£')
+                            info['BIRAKE'] = info['BIRAKE'].strip('$€£')
 
                             hand.buyin = int(100*Decimal(info['BIAMT']))
                             hand.fee = int(100*Decimal(info['BIRAKE']))
@@ -327,10 +330,13 @@ class PokerStars(HandHistoryConverter):
                 hand.level = info[key]
 
             if key == 'TABLE':
-                if hand.tourNo != None:
-                    hand.tablename = re.split(" ", info[key])[1]
-                else:
+                # 'TOURNO' may not have been iterated yet: dict order follows the
+                # regex group order, and the table line precedes the tourney id in
+                # some patterns, so read the tournament number from `info` too.
+                if hand.tourNo is None and info.get('TOURNO') is None:
                     hand.tablename = info[key]
+                else:
+                    hand.tablename = re.split(" ", info[key])[1]
             if key == 'BUTTON':
                 hand.buttonpos = info[key]
             if key == 'MAX' and info[key] != None:
@@ -436,7 +442,7 @@ class PokerStars(HandHistoryConverter):
 #    streets PREFLOP, PREDRAW, and THIRD are special cases beacause
 #    we need to grab hero's cards
         for street in ('PREFLOP', 'DEAL'):
-            if street in hand.streets.keys():
+            if street in list(hand.streets.keys()):
                 m = self.re_HeroCards.finditer(hand.streets[street])
                 for found in m:
 #                    if m == None:
@@ -446,7 +452,7 @@ class PokerStars(HandHistoryConverter):
                     newcards = found.group('NEWCARDS').split(' ')
                     hand.addHoleCards(street, hand.hero, closed=newcards, shown=False, mucked=False, dealt=True)
 
-        for street, text in hand.streets.iteritems():
+        for street, text in list(hand.streets.items()):
             if not text or street in ('PREFLOP', 'DEAL'): continue  # already done these
             m = self.re_HeroCards.finditer(hand.streets[street])
             for found in m:
@@ -488,7 +494,7 @@ class PokerStars(HandHistoryConverter):
             elif action.group('ATYPE') == ' stands pat':
                 hand.addStandsPat( street, action.group('PNAME'), action.group('CARDS'))
             else:
-                print (_("DEBUG:") + " " + _("Unimplemented %s: '%s' '%s'") % ("readAction", action.group('PNAME'), action.group('ATYPE')))
+                print((_("DEBUG:") + " " + _("Unimplemented %s: '%s' '%s'") % ("readAction", action.group('PNAME'), action.group('ATYPE'))))
 
 
     def readShowdownActions(self, hand):

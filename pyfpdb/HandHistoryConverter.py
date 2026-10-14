@@ -59,7 +59,7 @@ class HandHistoryConverter():
     # "utf_8" is more likely if there are funny characters
     codepage = "cp1252"
 
-    re_tzOffset = re.compile('^\w+[+-]\d{4}$')
+    re_tzOffset = re.compile(r'^\w+[+-]\d{4}$')
     copyGameHeader = False
     summaryInFile  = False
 
@@ -134,7 +134,7 @@ HandHistoryConverter: '%(sitename)s'
             for handText in handsList:
                 try:
                     self.processedHands.append(self.processHand(handText))
-                except FpdbHandPartial, e:
+                except FpdbHandPartial as e:
                     self.numPartial += 1
                     log.debug("%s" % e)
                 except FpdbParseError:
@@ -169,12 +169,12 @@ HandHistoryConverter: '%(sitename)s'
         # if self.archive:
         #     self.obs = self.convert_archive(self.obs)
         if self.starsArchive == True:
-            m = re.compile('^Hand #\d+', re.MULTILINE)
+            m = re.compile(r'^Hand #\d+', re.MULTILINE)
             self.obs = m.sub('', self.obs)
 
         if self.ftpArchive == True:
             # Remove  ******************** # 1 *************************
-            m = re.compile('\*{20}\s#\s\d+\s\*{20,25}\s+', re.MULTILINE)
+            m = re.compile(r'\*{20}\s#\s\d+\s\*{20,25}\s+', re.MULTILINE)
             self.obs = m.sub('', self.obs)
 
         if self.obs is None or self.obs == "":
@@ -390,7 +390,7 @@ or None if we fail to get the info """
             sane = True
 
         if self.in_path != '-' and self.out_path == self.in_path:
-            print(_("Output and input files are the same, check config."))
+            print((_("Output and input files are the same, check config.")))
             sane = False
 
         return sane
@@ -422,7 +422,7 @@ or None if we fail to get the info """
                 except:
                     pass
             else:
-                print _("unable to read file with any codec in list!"), self.in_path
+                print(_("unable to read file with any codec in list!"), self.in_path)
                 self.obs = ""
                 return False
         elif self.filetype == "xml":
@@ -451,10 +451,19 @@ or None if we fail to get the info """
         return 10
 
     def maxOccSeat(self, hand):
+        """Highest occupied seat number.
+
+        Converters disagree on whether the seat is an int or a string, and Python 3
+        refuses to order str against int, so normalise here rather than in 19 parsers.
+        """
         max = 0
         for player in hand.players:
-            if player[0] > max:
-                max = player[0]
+            try:
+                seat = int(player[0])
+            except (TypeError, ValueError):
+                continue
+            if seat > max:
+                max = seat
         return max
 
     def getStatus(self):
@@ -591,7 +600,7 @@ or None if we fail to get the info """
         "Returns string to search window title for tournament table no."
 # Full Tilt:  $30 + $3 Tournament (181398949), Table 1 - 600/1200 Ante 100 - Limit Razz
 # PokerStars: WCOOP 2nd Chance 02: $1,050 NLHE - Tournament 307521826 Table 1 - Blinds $30/$60
-        return "%s.+(?:Table|Torneo) (\d+)" % (tournament, )
+        return r"%s.+(?:Table|Torneo) (\d+)" % (tournament, )
 
     @staticmethod
     def clearMoneyString(money):
@@ -601,7 +610,7 @@ or None if we fail to get the info """
         if not money:
             return money
         money = money.replace(' ', '')
-        money = money.replace(u'\xa0', u'')
+        money = money.replace('\xa0', '')
         if 'K' in money:
             money = money.replace('K', '000')
         if 'M' in money:
@@ -647,7 +656,7 @@ def get_out_fh(out_path, parameters):
                 os.makedirs(out_dir) 
             except: # we get a WindowsError here in Windows.. pretty sure something else for Linux :D 
                 log.error(_("Unable to create output directory %s for HHC!") % out_dir) 
-                print(_("Unable to create output directory %s for HHC!") % out_dir)
+                print((_("Unable to create output directory %s for HHC!") % out_dir))
             else: 
                 log.info(_("Created directory '%s'") % out_dir) 
         try: 

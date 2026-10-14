@@ -39,13 +39,13 @@ class PokerTrackerSummary(TourneySummary):
 
     substitutions = {
                      'LEGAL_ISO' : "USD|EUR|GBP|CAD|FPP",      # legal ISO currency codes
-                            'LS' : u"\$|\xe2\x82\xac|\u20ac|\£|", # legal currency symbols - Euro(cp1252, utf-8)
+                            'LS' : "\\$|\xe2\x82\xac|\u20ac|\\£|", # legal currency symbols - Euro(cp1252, utf-8)
                            'PLYR': r'(?P<PNAME>.+?)',
-                           'NUM' : u".,\d",
-                            'CUR': u"(\$|\xe2\x82\xac|\u20ac||\£|)",
+                           'NUM' : r".,\d",
+                            'CUR': "(\\$|\xe2\x82\xac|\u20ac||\\£|)",
                     }
 
-    _re_TourneyInfo = re.compile(u"""
+    _re_TourneyInfo = re.compile(r"""
                         \#(?P<TOURNO>[0-9]+),\s
                         ((?P<LIMIT>No\sLimit|Limit|LIMIT|Pot\sLimit)\s)?
                         (?P<GAME>Hold\'em|Razz|RAZZ|7\sCard\sStud|7\sCard\sStud\sHi/Lo|Omaha|Omaha\sHi/Lo|Badugi|Triple\sDraw\s2\-7\sLowball|5\sCard\sDraw|HORSE|8\-Game|HOSE|Mixed\sOmaha\sH/L|Mixed\sHold\'em|Mixed\sPLH/PLO|Mixed\sNLH/PLO|Triple\sStud)\s+
@@ -59,7 +59,7 @@ class PokerTrackerSummary(TourneySummary):
                         (?P<DATETIME>.*$)
                         """ % substitutions ,re.VERBOSE|re.MULTILINE)
     
-    re_TourneyInfo = re.compile(u"""
+    re_TourneyInfo = re.compile(r"""
                         \s(3|4)\sTournament\sSummary\s+
                         Site:\s(?P<SITE>.+?)\s+
                         Game:\s(?P<GAME>Holdem|Texas\sHold\'em|Omaha|Omaha\sHi/Lo)\s+
@@ -73,11 +73,11 @@ class PokerTrackerSummary(TourneySummary):
                         Players:\s(?P<ENTRIES>\d+)\s+
                         """ % substitutions ,re.VERBOSE|re.MULTILINE)
 
-    re_Player = re.compile(u"""Place:\s(?P<RANK>[0-9]+),\sPlayer:\s(?P<NAME>.*),\sWon:\s(?P<CUR>[%(LS)s]?)(?P<WINNINGS>[,.0-9]+),""" % substitutions)
+    re_Player = re.compile(r"""Place:\s(?P<RANK>[0-9]+),\sPlayer:\s(?P<NAME>.*),\sWon:\s(?P<CUR>[%(LS)s]?)(?P<WINNINGS>[,.0-9]+),""" % substitutions)
     
-    re_DateTime1    = re.compile("""(?P<Y>[0-9]{4})\-(?P<M>[0-9]{2})\-(?P<D>[0-9]{2})[\- ]+(?P<H>[0-9]+):(?P<MIN>[0-9]+):(?P<S>[0-9]+)""", re.MULTILINE)
-    re_DateTime2    = re.compile("""(?P<M>[0-9]{2})\/(?P<D>[0-9]{2})\/(?P<Y>[0-9]{4})[\- ]+(?P<H>[0-9]+):(?P<MIN>[0-9]+):(?P<S>[0-9]+)""", re.MULTILINE)
-    re_DateTime3    = re.compile("""(?P<H>[0-9]+):(?P<MIN>[0-9]+):(?P<S>[0-9]+)[\- ]+(?P<Y>[0-9]{4})\/(?P<M>[0-9]{2})\/(?P<D>[0-9]{2})""", re.MULTILINE)
+    re_DateTime1    = re.compile(r"""(?P<Y>[0-9]{4})\-(?P<M>[0-9]{2})\-(?P<D>[0-9]{2})[\- ]+(?P<H>[0-9]+):(?P<MIN>[0-9]+):(?P<S>[0-9]+)""", re.MULTILINE)
+    re_DateTime2    = re.compile(r"""(?P<M>[0-9]{2})\/(?P<D>[0-9]{2})\/(?P<Y>[0-9]{4})[\- ]+(?P<H>[0-9]+):(?P<MIN>[0-9]+):(?P<S>[0-9]+)""", re.MULTILINE)
+    re_DateTime3    = re.compile(r"""(?P<H>[0-9]+):(?P<MIN>[0-9]+):(?P<S>[0-9]+)[\- ]+(?P<Y>[0-9]{4})\/(?P<M>[0-9]{2})\/(?P<D>[0-9]{2})""", re.MULTILINE)
 
     codepage = ["utf-8"]
 
@@ -131,7 +131,7 @@ class PokerTrackerSummary(TourneySummary):
         self.startTime = datetime.datetime.strptime(datetimestr, "%Y/%m/%d %H:%M:%S") # also timezone at end, e.g. " ET"
 
         if mg['CURRENCY'] == "$":     self.buyinCurrency="USD"
-        elif mg['CURRENCY'] == u"€":  self.buyinCurrency="EUR"
+        elif mg['CURRENCY'] == "€":  self.buyinCurrency="EUR"
         elif not mg['CURRENCY']:      self.buyinCurrency="play"
         if self.buyin == 0:           self.buyinCurrency="FREE"
         self.currency = self.buyinCurrency
@@ -152,7 +152,7 @@ class PokerTrackerSummary(TourneySummary):
                 
             if 'CUR' in mg and mg['CUR'] != None:
                 if mg['CUR'] == "$":     self.currency="USD"
-                elif mg['CUR'] == u"€":  self.currency="EUR"
+                elif mg['CUR'] == "€":  self.currency="EUR"
                 elif mg['CUR'] == "FPP": self.currency="PSFP"
 
             if rank==0:

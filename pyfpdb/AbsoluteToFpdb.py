@@ -49,7 +49,7 @@ class Absolute(HandHistoryConverter):
     #Seat 6 - FETS63 ($0.75 in chips)
     #Board [10s 5d Kh Qh 8c]
 
-    re_GameInfo = re.compile( ur"""
+    re_GameInfo = re.compile( r"""
               ^Stage\s+\#C?(?P<HID>[0-9]+):?\s+
               (?:Tourney\ ID\ (?P<TRNY_ID>\d+)\s+)?
               (?P<GAME>Holdem|Seven\ Card\ Hi\/Lo|HORSE)\s+
@@ -66,28 +66,28 @@ class Absolute(HandHistoryConverter):
         """, re.MULTILINE|re.VERBOSE|re.DOTALL)
 
     re_HorseGameInfo = re.compile(
-            ur"^Game Type: (?P<LIMIT>Limit) (?P<GAME>Holdem)",
+            r"^Game Type: (?P<LIMIT>Limit) (?P<GAME>Holdem)",
             re.MULTILINE)
 
     re_HandInfo = re_GameInfo
 
     # on HORSE STUD games, the table name isn't in the hand info!
-    re_RingInfoFromFilename = re.compile(ur".*IHH([0-9]+) (?P<TABLE>.*) -")
+    re_RingInfoFromFilename = re.compile(r".*IHH([0-9]+) (?P<TABLE>.*) -")
     re_TrnyInfoFromFilename = re.compile(
-            ur"IHH\s?([0-9]+) (?P<TRNY_NAME>.*) "\
-            ur"ID (?P<TRNY_ID>\d+)\s?(\((?P<TABLE>\d+)\))? .* "\
-            ur"(?:\$|\s€|)(?P<BUYIN>[0-9.]+)\s*\+\s*(?:\$|\s€|)(?P<FEE>[0-9.]+)"
+            r"IHH\s?([0-9]+) (?P<TRNY_NAME>.*) "\
+            r"ID (?P<TRNY_ID>\d+)\s?(\((?P<TABLE>\d+)\))? .* "\
+            r"(?:\$|\s€|)(?P<BUYIN>[0-9.]+)\s*\+\s*(?:\$|\s€|)(?P<FEE>[0-9.]+)"
             )
 
     # TODO: that's not the right way to match for "dead" dealer is it?
-    re_Button = re.compile(ur"Seat #(?P<BUTTON>[0-9]) is the ?[dead]* dealer$", re.MULTILINE)
+    re_Button = re.compile(r"Seat #(?P<BUTTON>[0-9]) is the ?[dead]* dealer$", re.MULTILINE)
 
     re_PlayerInfo = re.compile(
-            ur"^Seat (?P<SEAT>[0-9]) - (?P<PNAME>.*) "\
-            ur"\((?:\$| €|)(?P<CASH>[0-9]*[.,0-9]+) in chips\)",
+            r"^Seat (?P<SEAT>[0-9]) - (?P<PNAME>.*) "\
+            r"\((?:\$| €|)(?P<CASH>[0-9]*[.,0-9]+) in chips\)",
             re.MULTILINE)
 
-    re_Board = re.compile(ur"\[(?P<CARDS>[^\]]*)\]? *$", re.MULTILINE)
+    re_Board = re.compile(r"\[(?P<CARDS>[^\]]*)\]? *$", re.MULTILINE)
 
 
     def compilePlayerRegexs(self, hand):
@@ -98,17 +98,17 @@ class Absolute(HandHistoryConverter):
             player_re = "(?P<PNAME>" + "|".join(map(re.escape, players)) + ")"
             log.debug("player_re: "+ player_re)
             #(?P<CURRENCY>\$| €|)(?P<BB>[0-9]*[.0-9]+)
-            self.re_PostSB          = re.compile(ur"^%s - Posts small blind (?:\$| €|)(?P<SB>[,.0-9]+)" % player_re, re.MULTILINE)
-            self.re_PostBB          = re.compile(ur"^%s - Posts big blind (?:\$| €|)(?P<BB>[.,0-9]+)" % player_re, re.MULTILINE)
-            self.re_Post            = re.compile(ur"^%s - Posts (?:\$| €|)(?P<BB>[.,0-9]+)" % player_re, re.MULTILINE)
+            self.re_PostSB          = re.compile(r"^%s - Posts small blind (?:\$| €|)(?P<SB>[,.0-9]+)" % player_re, re.MULTILINE)
+            self.re_PostBB          = re.compile(r"^%s - Posts big blind (?:\$| €|)(?P<BB>[.,0-9]+)" % player_re, re.MULTILINE)
+            self.re_Post            = re.compile(r"^%s - Posts (?:\$| €|)(?P<BB>[.,0-9]+)" % player_re, re.MULTILINE)
             # TODO: Absolute posting when coming in new: %s - Posts $0.02 .. should that be a new Post line? where do we need to add support for that? *confused*
-            self.re_PostBoth        = re.compile(ur"^%s - Posts dead (?:\$| €|)(?P<SBBB>[,.0-9]+)" % player_re, re.MULTILINE)
-            self.re_Action          = re.compile(ur"^%s - (?P<ATYPE>Bets |Raises |All-In |All-In\(Raise\) |Calls |Folds|Checks)?\$?(?P<BET>[,.0-9]+)?" % player_re, re.MULTILINE)
-            self.re_ShowdownAction  = re.compile(ur"^%s - Shows \[(?P<CARDS>.*)\]" % player_re, re.MULTILINE)
-            self.re_CollectPot      = re.compile(ur"^Seat [0-9]: %s(?: \(dealer\)|)(?: \(big blind\)| \(small blind\)|) (?:won|collected) Total \((?:\$| €|)(?P<POT>[,.0-9]+)\)" % player_re, re.MULTILINE)
-            self.re_Antes           = re.compile(ur"^%s - Ante (?:\$| €|)(?P<ANTE>[,.0-9]+)" % player_re, re.MULTILINE)
-            self.re_BringIn         = re.compile(ur"^%s - Bring-In (?:\$| €|)(?P<BRINGIN>[.0-9]+)\." % player_re, re.MULTILINE)
-            self.re_HeroCards       = re.compile(ur"^(Dealt to )?%s - Pocket \[(?P<CARDS>.*)\]" % player_re, re.MULTILINE)
+            self.re_PostBoth        = re.compile(r"^%s - Posts dead (?:\$| €|)(?P<SBBB>[,.0-9]+)" % player_re, re.MULTILINE)
+            self.re_Action          = re.compile(r"^%s - (?P<ATYPE>Bets |Raises |All-In |All-In\(Raise\) |Calls |Folds|Checks)?\$?(?P<BET>[,.0-9]+)?" % player_re, re.MULTILINE)
+            self.re_ShowdownAction  = re.compile(r"^%s - Shows \[(?P<CARDS>.*)\]" % player_re, re.MULTILINE)
+            self.re_CollectPot      = re.compile(r"^Seat [0-9]: %s(?: \(dealer\)|)(?: \(big blind\)| \(small blind\)|) (?:won|collected) Total \((?:\$| €|)(?P<POT>[,.0-9]+)\)" % player_re, re.MULTILINE)
+            self.re_Antes           = re.compile(r"^%s - Ante (?:\$| €|)(?P<ANTE>[,.0-9]+)" % player_re, re.MULTILINE)
+            self.re_BringIn         = re.compile(r"^%s - Bring-In (?:\$| €|)(?P<BRINGIN>[.0-9]+)\." % player_re, re.MULTILINE)
+            self.re_HeroCards       = re.compile(r"^(Dealt to )?%s - Pocket \[(?P<CARDS>.*)\]" % player_re, re.MULTILINE)
 
     def readSupportedGames(self):
         return [["ring", "hold", "nl"],
@@ -154,7 +154,7 @@ class Absolute(HandHistoryConverter):
          'Seven Card Hi/Lo' : ('stud','studhilo'),
               '7 Card Stud' : ('stud','studhi')
                }
-        currencies = { u' €':'EUR', '$':'USD', '':'T$' }
+        currencies = { ' €':'EUR', '$':'USD', '':'T$' }
         if 'GAME' in mg and mg['GAME'] == "HORSE": # if we're a HORSE game, the game type is on the next line
             self.HORSEHand = True
             m = self.re_HorseGameInfo.search(handText)
@@ -322,7 +322,7 @@ class Absolute(HandHistoryConverter):
 #    streets PREFLOP, PREDRAW, and THIRD are special cases beacause
 #    we need to grab hero's cards
         for street in ('PREFLOP', 'DEAL'):
-            if street in hand.streets.keys():
+            if street in list(hand.streets.keys()):
                 m = self.re_HeroCards.finditer(hand.streets[street])
                 for found in m:
 #                    if m == None:
@@ -332,7 +332,7 @@ class Absolute(HandHistoryConverter):
                     newcards = [validCard(card) for card in found.group('CARDS').split(' ') if card != 'H']
                     hand.addHoleCards(street, hand.hero, closed=newcards, shown=False, mucked=False, dealt=True)
 
-        for street, text in hand.streets.iteritems():
+        for street, text in hand.streets.items():
             if not text or street in ('PREFLOP', 'DEAL'): continue  # already done these
             m = self.re_HeroCards.finditer(hand.streets[street])
             for found in m:
@@ -405,7 +405,7 @@ class Absolute(HandHistoryConverter):
                     cards = [validCard(card) for card in cards.split(' ')  if card != 'H']
                     player = m.group('PNAME')
                     log.debug("readShownCards %s cards=%s" % (player, cards))
-                    print cards
+                    print(cards)
     #                hand.addShownCards(cards=None, player=m.group('PNAME'), holeandboard=cards)
                     hand.addShownCards(cards=cards, player=m.group('PNAME'))
             except IndexError:

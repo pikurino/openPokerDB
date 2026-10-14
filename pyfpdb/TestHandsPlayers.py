@@ -43,10 +43,21 @@ class FpdbError:
         self.statcount = {}
 
     def error_report(self, filename, hand, stat, ghash, testhash, player):
-        print "Regression Test Error:"
-        print "\tFile: %s" % filename
-        print "\tStat: %s" % stat
-        print "\tPlayer: %s" % player
+        print("Regression Test Error:")
+        print("\tFile: %s" % filename)
+        print("\tStat: %s" % stat)
+        print("\tPlayer: %s" % player)
+        if hand:
+            print("\tHand: %s" % hand.handid)
+        # Show the two values: a name alone does not tell you whether the parser
+        # disagreed or the expectation file did.
+        if isinstance(ghash, dict) and isinstance(testhash, dict):
+            if player:
+                print("\tGot:      %r" % (ghash.get(player, {}).get(stat),))
+                print("\tExpected: %r" % (testhash.get(player, {}).get(stat),))
+            else:
+                print("\tGot:      %r" % (ghash.get(stat),))
+                print("\tExpected: %r" % (testhash.get(stat),))
         if filename in self.histogram:
             self.histogram[filename] += 1
         else:
@@ -59,10 +70,10 @@ class FpdbError:
         self.errorcount += 1
 
     def print_histogram(self):
-        print "%s:" % self.site
+        print("%s:" % self.site)
         for f in self.histogram:
             idx = f.find('regression')
-            print "(%3d) : %s" %(self.histogram[f], f[idx:])
+            print("(%3d) : %s" %(self.histogram[f], f[idx:]))
 
 def compare_gametypes_file(filename, importer, errors):
     hashfilename = filename + '.gt'
@@ -137,7 +148,7 @@ def compare_handsplayers_file(filename, importer, errors):
                             pass
                         else:
                             errors.error_report(filename, hand, stat, ghash, testhash, p)
-                except KeyError, e:
+                except KeyError as e:
                     errors.error_report(filename, False, "KeyError: '%s'" % stat, False, False, p)
 
 def compare_hands_file(filename, importer, errors):
@@ -169,21 +180,23 @@ def compare_hands_file(filename, importer, errors):
                     # The stats match - continue
                     pass
                 else:
-                    # Stats don't match. 
+                    # Stats don't match.
+                    # runItTwice used to be exempted here. Measured on the whole fixture tree
+                    # (2026-10-13): no site disagrees with its own sidecar, and GGPoker is the only
+                    # parser that sets it, so an exemption would hide exactly the hands we care about.
                     if (datum == "gametypeId" 
                         or datum == 'gameId' 
                         or datum == 'sessionId' 
                         or datum == 'id'
                         or datum == 'tourneyId' 
                         or datum == 'gameSessionId'
-                        or datum == 'fileId'
-                        or datum == 'runItTwice'):
+                        or datum == 'fileId'):
                         # Not an error. gametypeIds are dependent on the order added to the db.
                         #print "DEBUG: Skipping mismatched gamtypeId"
                         pass
                     else:
                         errors.error_report(filename, hand, datum, ghash, testhash, None)
-            except KeyError, e:
+            except KeyError as e:
                 errors.error_report(filename, False, "KeyError: '%s'" % datum, False, False, None)
 
 
@@ -194,8 +207,8 @@ def compare(leaf, importer, errors, site):
     # Test if this is a hand history file
     if filename.endswith('.txt') or filename.endswith('.xml'):
         # test if there is a .hp version of the file
-        if DEBUG: print "Site: %s" % site
-        if DEBUG: print "Filename: %s" % filename
+        if DEBUG: print("Site: %s" % site)
+        if DEBUG: print("Filename: %s" % filename)
         importer.addBulkImportImportFileOrDir(filename, site=site)
         (stored, dups, partial, errs, ttime) = importer.runImport()
 
@@ -223,7 +236,8 @@ def walk_testfiles(dir, function, importer, errors, site):
                 walk_testfiles(nfile, compare, importer, errors, site)
             else:
                 function(nfile, importer, errors, site)
-    except OSError as (errno, strerror):
+    except OSError as xxx_todo_changeme:
+        (errno, strerror) = xxx_todo_changeme.args
         if errno == 20:
             # Error 20 is 'not a directory'
             function(dir, importer, errors, site)
@@ -231,13 +245,13 @@ def walk_testfiles(dir, function, importer, errors, site):
             raise OSError(errno, strerror)
 
 def usage():
-    print "USAGE:"
-    print "Run all tests:"
-    print "\t./TestHandsPlayers.py"
-    print "Run tests for a sinlge site:"
-    print "\t./TestHandsPlayers -s <Sitename>"
-    print "Run tests for a sinlge file in a site:"
-    print "\t./TestHandsPlayers -s <Sitename> -f <filename>"
+    print("USAGE:")
+    print("Run all tests:")
+    print("\t./TestHandsPlayers.py")
+    print("Run tests for a sinlge site:")
+    print("\t./TestHandsPlayers -s <Sitename>")
+    print("Run tests for a sinlge file in a site:")
+    print("\t./TestHandsPlayers -s <Sitename> -f <filename>")
     sys.exit(0)
 
 def main(argv=None):
@@ -259,10 +273,10 @@ def main(argv=None):
         if options.sitename == False:
             usage()
         if options.filename:
-            print "Testing single hand: '%s'" % options.filename
+            print("Testing single hand: '%s'" % options.filename)
             single_file_test = True
         else:
-            print "Only regression testing '%s' files" % (options.sitename)
+            print("Only regression testing '%s' files" % (options.sitename))
         test_all_sites = False
 
     config = Configuration.Config(file = "HUD_config.test.xml")
@@ -288,6 +302,7 @@ def main(argv=None):
     EverleafErrors    = FpdbError('Everleaf Poker')
     EverestErrors     = FpdbError('Everest Poker')
     FTPErrors         = FpdbError('Full Tilt Poker')
+    GGPokerErrors     = FpdbError('GGPoker')
     iPokerErrors      = FpdbError('iPoker')
     MergeErrors      = FpdbError('Merge')
     MicrogamingErrors = FpdbError('Microgaming')
@@ -301,7 +316,7 @@ def main(argv=None):
 
     ErrorsList = [
                     AbsoluteErrors, BetfairErrors, BetOnlineErrors, BossErrors, CakeErrors, EntractionErrors,
-                    EverleafErrors, EverestErrors, FTPErrors, iPokerErrors, MergeErrors, MicrogamingErrors,
+                    EverleafErrors, EverestErrors, FTPErrors, GGPokerErrors, iPokerErrors, MergeErrors, MicrogamingErrors,
                     OnGameErrors, PacificPokerErrors, PartyPokerErrors, PokerStarsErrors, PKRErrors,
                     PTErrors, WinamaxErrors,
                 ]
@@ -316,6 +331,7 @@ def main(argv=None):
                 'Everleaf' : False,
                 'Everest' : False,
                 'Full Tilt Poker' : False,
+                'GGPoker' : False,
                 'iPoker' : False,
                 'Merge' : False,
                 'Microgaming': False,
@@ -430,6 +446,17 @@ def main(argv=None):
         walk_testfiles("regression-test-files/tour/Winamax/", compare, importer, WinamaxErrors, "Winamax")
     elif sites['Winamax'] == True and single_file_test:
         walk_testfiles(options.filename, compare, importer, WinamaxErrors, "Winamax")
+    # GGPoker has no tournament hand histories yet (DESIGN.md 3.7), so there is no tour/ directory.
+    # Its fixtures are real hand histories, so they are not committed (see .gitignore) and a clone
+    # that has not supplied them must skip instead of raising, or the whole suite dies on this walk.
+    if sites['GGPoker'] == True and not single_file_test:
+        if os.path.isdir("regression-test-files/cash/GGPoker"):
+            walk_testfiles("regression-test-files/cash/GGPoker/", compare, importer, GGPokerErrors, "GGPoker")
+        else:
+            print("GGPoker: no fixtures under regression-test-files/cash/GGPoker/, skipping. "
+                  "Copy GG hands (with their .gt/.hands/.hp sidecars) there to run this site.")
+    elif sites['GGPoker'] == True and single_file_test:
+        walk_testfiles(options.filename, compare, importer, GGPokerErrors, "GGPoker")
 
     totalerrors = 0
 
@@ -449,20 +476,20 @@ def main(argv=None):
             else:
                 statdict[stat] = tmp[stat]
 
-    print "\n"
-    print "---------------------"
-    print "Errors by stat:"
-    print "---------------------"
+    print("\n")
+    print("---------------------")
+    print("Errors by stat:")
+    print("---------------------")
     #for stat in statdict:
     #    print "(%3d) : %s" %(statdict[stat], stat)
 
-    sortedstats = sorted([(value,key) for (key,value) in statdict.items()])
+    sortedstats = sorted([(value,key) for (key,value) in list(statdict.items())])
     for num, stat in sortedstats:
-        print "(%3d) : %s" %(num, stat)
+        print("(%3d) : %s" %(num, stat))
 
-    print "---------------------"
-    print "Total Errors: %d" % totalerrors
-    print "---------------------"
+    print("---------------------")
+    print("Total Errors: %d" % totalerrors)
+    print("---------------------")
 
 if __name__ == '__main__':
     sys.exit(main())

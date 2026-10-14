@@ -37,12 +37,7 @@ windows_modules_to_test =  ["win32gui",
                             "win32con",
                             "win32process",
                             "win32event",
-                            "win32console",
-                            "winpaths"]
-
-linux_modules_to_test = ["wnck"]
-mac_modules_to_test = []
-posix_modules_to_test = []
+                            "win32console"]
 
 def win_output(message):
     
@@ -175,34 +170,17 @@ if config.python_version not in("2.6", "2.7"):
 
 for i in global_modules_to_test:
     try_import(i)
-if config.os_family in ("XP", "Win7"):
-    for i in windows_modules_to_test:
-        try_import(i)
-elif config.os_family == "Linux":
-    for i in linux_modules_to_test:
-        try_import(i)
-elif config.os_family == "Mac":
-    for i in mac_modules_to_test:
-        try_import(i)
-if config.posix:
-    for i in posix_modules_to_test:
-        try_import(i) 
+for i in windows_modules_to_test:
+    try_import(i)
 
 if len(failure_list):
     win_output(failure_list)
 
 #
-# finished validation, work out how to exit
+# finished validation
 #
-if config.install_method == "exe":
-    if len(failure_list):
-        sys.exit(1)
- 
 if len(failure_list):
-    if config.os_family in ("XP", "Win7"):
-        sys.exit(1)
-    else:
-        sys.exit(failure_list)
+    sys.exit(1)
 
 #
 # If initial run (example_copy==True), prompt for language
@@ -238,10 +216,7 @@ if config.install_method == "exe":
 import os
 os.chdir(os.path.join(config.fpdb_root_path, u"pyfpdb"))
 
-if config.os_family in ("XP", "Win7"):
-    os.execvpe('pythonw.exe', list(('pythonw.exe', 'fpdb.pyw', initial_run, '-r'))+sys.argv[1:], os.environ)
-else:
-    os.execvpe('python', list(('python', 'fpdb.pyw', initial_run, '-r'))+sys.argv[1:], os.environ)
+os.execvpe('pythonw.exe', list(('pythonw.exe', 'fpdb.pyw', initial_run, '-r'))+sys.argv[1:], os.environ)
 ###################
 # DO NOT INSERT ANY LINES BELOW HERE
 # os.execvpe above transfers control to fpdb.pyw immediately

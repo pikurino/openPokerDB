@@ -31,13 +31,13 @@ class Entraction(HandHistoryConverter):
     codepage = ("utf8", "cp1252")
     siteId   = 18
     
-    sym = {'USD': "\$", 'CAD': "\$", 'T$': "", "EUR": "\xe2\x82\xac", "GBP": "\xa3", "play": ""}
+    sym = {'USD': r"\$", 'CAD': r"\$", 'T$': "", "EUR": "\xe2\x82\xac", "GBP": "\xa3", "play": ""}
     substitutions = {
                      'LEGAL_ISO' : "EUR|Fun|",
-                            'LS' : u"\$|\xe2\x82\xac|\u20ac|\£|", # legal currency symbols - Euro(cp1252, utf-8)
+                            'LS' : "\\$|\xe2\x82\xac|\u20ac|\\£|", # legal currency symbols - Euro(cp1252, utf-8)
                            'PLYR': r'(?P<PNAME>.+?)',
-                            'CUR': u"(\$|\xe2\x82\xac|\u20ac|)",
-                            'NUM': u".,\d",
+                            'CUR': "(\\$|\xe2\x82\xac|\u20ac|)",
+                            'NUM': r".,\d",
                     }
                     
     Lim_Blinds = {      '0.04': ('0.01', '0.02'),
@@ -68,7 +68,7 @@ class Entraction(HandHistoryConverter):
                }
 
     # Static regexes
-    re_GameInfo     = re.compile(u"""
+    re_GameInfo     = re.compile(r"""
           \s(?P<HID>[0-9]+)\s-\s
           (?P<GAME>Texas\sHold\'em|Omaha\sHigh|5-Card\sOmaha\sHigh)\s
           (?P<LIMIT>No\sLimit|Pot\sLimit|Fixed\sLimit)\s
@@ -79,13 +79,13 @@ class Entraction(HandHistoryConverter):
           \-\sTable\s\"(?P<TABLE>.+?)(\s(?P<TOURNO>\d+)\s(?P<TABLENO>\d+))?\"
         """ % substitutions, re.MULTILINE|re.VERBOSE)
 
-    re_PlayerInfo   = re.compile(u"""
+    re_PlayerInfo   = re.compile(r"""
           ^(?P<PNAME>.*)\s
           \((%(LEGAL_ISO)s)?\s?(?P<CASH>[%(NUM)s]+)\s
           in\sseat\s(?P<SEAT>[0-9]+)\)"""
             % substitutions, re.MULTILINE|re.VERBOSE)
 
-    re_HandInfo     = re.compile("""
+    re_HandInfo     = re.compile(r"""
           \s(?P<HID>[0-9]+)\s-\s.+?
           Table\s"(?P<TABLE>(?P<BUYIN>(?P<BIAMT>[%(LS)s%(NUM)s]+)?\+?(?P<BIRAKE>[%(NUM)s]+)?)?.+?)(\s(?P<TOURNO>\d+)\s(?P<TABLENO>\d+))?\"
         """ % substitutions, re.MULTILINE|re.VERBOSE)
@@ -96,7 +96,7 @@ class Entraction(HandHistoryConverter):
     re_GameEnds     = re.compile(r"Game\sended\s(?P<Y>[0-9]{4})-(?P<M>[0-9]{2})-(?P<D>[0-9]{2})\s(?P<H>[0-9]+):(?P<MIN>[0-9]+):(?P<S>[0-9]+)(\s(?P<TZ>[A-Z]+))?", re.MULTILINE)
     re_Max          = re.compile(r"Players\(max\s(?P<MAX>\d+)\):")
 
-    re_DateTime     = re.compile("""(?P<Y>[0-9]{4})\/(?P<M>[0-9]{2})\/(?P<D>[0-9]{2})[\- ]+(?P<H>[0-9]+):(?P<MIN>[0-9]+):(?P<S>[0-9]+)""", re.MULTILINE)
+    re_DateTime     = re.compile(r"""(?P<Y>[0-9]{4})\/(?P<M>[0-9]{2})\/(?P<D>[0-9]{2})[\- ]+(?P<H>[0-9]+):(?P<MIN>[0-9]+):(?P<S>[0-9]+)""", re.MULTILINE)
     re_PostSB       = re.compile(r"^Small Blind: {16}(?P<PNAME>.*)\s+\((?P<SB>[%(NUM)s]+)\)" % substitutions, re.MULTILINE)
     re_PostBB       = re.compile(r"^Big Blind: {18}(?P<PNAME>.*)\s+\((?P<BB>[%(NUM)s]+)\)" % substitutions, re.MULTILINE)
     re_PostBoth     = re.compile(r"^Small \+ Big Blind: {10}(?P<PNAME>.*)\s+\((?P<SBBB>[%(NUM)s]+)\)" % substitutions, re.MULTILINE)
@@ -206,9 +206,9 @@ class Entraction(HandHistoryConverter):
                     else:
                         if info[key].find("$")!=-1:
                             hand.buyinCurrency="USD"
-                        elif info[key].find(u"£")!=-1:
+                        elif info[key].find("£")!=-1:
                             hand.buyinCurrency="GBP"
-                        elif info[key].find(u"€")!=-1:
+                        elif info[key].find("€")!=-1:
                             hand.buyinCurrency="EUR"
                         elif re.match("^[0-9+]*$", info[key]):
                             hand.buyinCurrency="play"
@@ -217,8 +217,8 @@ class Entraction(HandHistoryConverter):
                             log.error(_("EntractionToFpdb.readHandInfo: Failed to detect currency.") + " Hand ID: %s: '%s'" % (hand.handid, info[key]))
                             raise FpdbParseError
 
-                        info['BIAMT'] = self.clearMoneyString(info['BIAMT'].strip(u'$€£'))
-                        info['BIRAKE'] = self.clearMoneyString(info['BIRAKE'].strip(u'$€£'))
+                        info['BIAMT'] = self.clearMoneyString(info['BIAMT'].strip('$€£'))
+                        info['BIRAKE'] = self.clearMoneyString(info['BIRAKE'].strip('$€£'))
                         hand.buyin = int(100*Decimal(info['BIAMT']))
                         hand.fee = int(100*Decimal(info['BIRAKE']))
             if key == 'TABLE':
@@ -294,7 +294,7 @@ class Entraction(HandHistoryConverter):
 #    streets PREFLOP, PREDRAW, and THIRD are special cases beacause
 #    we need to grab hero's cards
         for street in ('PREFLOP', 'DEAL'):
-            if street in hand.streets.keys():
+            if street in list(hand.streets.keys()):
                 m = self.re_HeroCards.finditer(hand.streets[street])
                 for found in m:
                     hand.hero = found.group('PNAME')
@@ -320,7 +320,7 @@ class Entraction(HandHistoryConverter):
             elif action.group('ATYPE') == 'All-In':
                 hand.addAllIn(street, action.group('PNAME'), self.clearMoneyString(action.group('BET')))
             else:
-                print (_("DEBUG:") + " " + _("Unimplemented %s: '%s' '%s'") % ("readAction", action.group('PNAME'), action.group('ATYPE')))
+                print((_("DEBUG:") + " " + _("Unimplemented %s: '%s' '%s'") % ("readAction", action.group('PNAME'), action.group('ATYPE'))))
 
 
     def readShowdownActions(self, hand):

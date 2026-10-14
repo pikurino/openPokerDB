@@ -45,14 +45,14 @@ class Sitename(TourneySummary):
 
     substitutions = {
                      'LEGAL_ISO' : "USD|EUR|GBP|CAD|FPP",    # legal ISO currency codes
-                            'LS' : u"\$|\xe2\x82\xac|\u20AC|" # legal currency symbols
+                            'LS' : "\\$|\xe2\x82\xac|\\u20AC|" # legal currency symbols
                     }
 
     re_SplitTourneys = re.compile("PokerStars Tournament ")
     
-    re_TourNo = re.compile("\#(?P<TOURNO>[0-9]+),")
+    re_TourNo = re.compile(r"\#(?P<TOURNO>[0-9]+),")
 
-    re_TourneyInfo = re.compile(u"""
+    re_TourneyInfo = re.compile(r"""
                         \#(?P<TOURNO>[0-9]+),\s
                         (?P<LIMIT>No\sLimit|Limit|LIMIT|Pot\sLimit)\s
                         (?P<GAME>Hold\'em|Razz|RAZZ|7\sCard\sStud|7\sCard\sStud\sHi/Lo|Omaha|Omaha\sHi/Lo|Badugi|Triple\sDraw\s2\-7\sLowball|5\sCard\sDraw)\s+
@@ -66,11 +66,11 @@ class Sitename(TourneySummary):
                         (?P<Y>[0-9]{4})\/(?P<M>[0-9]{2})\/(?P<D>[0-9]{2})[\-\s]+(?P<H>[0-9]+):(?P<MIN>[0-9]+):(?P<S>[0-9]+)\s?\(?(?P<TZ>[A-Z]+)\)?\s
                                """ % substitutions ,re.VERBOSE|re.MULTILINE|re.DOTALL)
 
-    re_Currency = re.compile(u"""(?P<CURRENCY>[%(LS)s]|FPP)""" % substitutions)
+    re_Currency = re.compile("""(?P<CURRENCY>[%(LS)s]|FPP)""" % substitutions)
 
-    re_Player = re.compile(u"""(?P<RANK>[0-9]+):\s(?P<NAME>.*)\s\(.*\),(\s)?(\$(?P<WINNINGS>[0-9]+\.[0-9]+))?(?P<STILLPLAYING>still\splaying)?((?P<TICKET>Tournament\sTicket)\s\(WSOP\sStep\s(?P<LEVEL>\d)\))?(\s+)?""")
+    re_Player = re.compile(r"""(?P<RANK>[0-9]+):\s(?P<NAME>.*)\s\(.*\),(\s)?(\$(?P<WINNINGS>[0-9]+\.[0-9]+))?(?P<STILLPLAYING>still\splaying)?((?P<TICKET>Tournament\sTicket)\s\(WSOP\sStep\s(?P<LEVEL>\d)\))?(\s+)?""")
 
-    re_DateTime = re.compile("\[(?P<Y>[0-9]{4})\/(?P<M>[0-9]{2})\/(?P<D>[0-9]{2})[\- ]+(?P<H>[0-9]+):(?P<MIN>[0-9]+):(?P<S>[0-9]+)")
+    re_DateTime = re.compile(r"\[(?P<Y>[0-9]{4})\/(?P<M>[0-9]{2})\/(?P<D>[0-9]{2})[\- ]+(?P<H>[0-9]+):(?P<MIN>[0-9]+):(?P<S>[0-9]+)")
 
     codepage = ["utf-8"]
 
@@ -85,7 +85,7 @@ class Sitename(TourneySummary):
             log.error("parseSummary: " + _("Raising FpdbParseError"))
             raise FpdbParseError(_("Unable to recognise Tourney Info: '%s'") % tmp)
 
-        print "DEBUG: m.groupdict(): %s" % m.groupdict()
+        print(("DEBUG: m.groupdict(): %s" % m.groupdict()))
 
         mg = m.groupdict()
         self.tourNo = ''

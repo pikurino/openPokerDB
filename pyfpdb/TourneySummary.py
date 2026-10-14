@@ -47,7 +47,7 @@ class TourneySummary(object):
 #    Class Variables
     UPS = {'a':'A', 't':'T', 'j':'J', 'q':'Q', 'k':'K', 'S':'s', 'C':'c', 'H':'h', 'D':'d'}     # SAL- TO KEEP ??
     LCS = {'H':'h', 'D':'d', 'C':'c', 'S':'s'}                                                  # SAL- TO KEEP ??
-    SYMBOL = {'USD': '$', 'EUR': u'$', 'T$': '', 'play': ''}
+    SYMBOL = {'USD': '$', 'EUR': '$', 'T$': '', 'play': ''}
     MS = {'horse' : 'HORSE', '8game' : '8-Game', 'hose'  : 'HOSE', 'ha': 'HA'}
     SITEIDS = {'Fulltilt':1, 'Full Tilt Poker':1, 'PokerStars':2, 'Everleaf':3, 'Boss':4, 'OnGame':5,
                'UltimateBet':6, 'Betfair':7, 'Absolute':8, 'PartyPoker':9, 'PacificPoker':10,
@@ -296,7 +296,7 @@ winnings    (int) the money the player ended the tourney with (can be 0, or -1 i
     def incrementPlayerWinnings(self, name, additionnalWinnings):
         log.debug("incrementPlayerWinnings: name : '%s' - Add Winnings (%s)" % (name, additionnalWinnings))
         oldWins = 0
-        if self.winnings.has_key(name):
+        if name in self.winnings:
             oldWins = self.winnings[name]
         else:
             self.players.append([-1, name, 0])
@@ -309,7 +309,7 @@ winnings    (int) the money the player ended the tourney with (can be 0, or -1 i
             raise FpdbParseError
 
     def writeSummary(self, fh=sys.__stdout__):
-        print >>fh, "Override me"
+        print("Override me", file=fh)
 
     def printSummary(self):
         self.writeSummary(sys.stdout)
@@ -325,9 +325,9 @@ winnings    (int) the money the player ended the tourney with (can be 0, or -1 i
                 whole_file = in_fh.read()
                 in_fh.close()
                 break
-            except UnicodeDecodeError, e:
+            except UnicodeDecodeError as e:
                 log.warning("TS.readFile: '%s' : '%s'" % (filename,e))
-            except UnicodeError, e:
+            except UnicodeError as e:
                 log.warning("TS.readFile: '%s' : '%s'" % (filename,e))
 
         return whole_file

@@ -34,12 +34,12 @@ class Betfair(HandHistoryConverter):
     siteId   = 7 # Needs to match id entry in Sites database
 
     # Static regexes
-    re_GameInfo      = re.compile("^(?P<LIMIT>NL|PL|) (?P<CURRENCY>\$|)?(?P<SB>[.0-9]+)/\$?(?P<BB>[.0-9]+) (?P<GAME>(Texas Hold\'em|Omaha Hi|Omaha|Razz))", re.MULTILINE)
+    re_GameInfo      = re.compile("^(?P<LIMIT>NL|PL|) (?P<CURRENCY>\\$|)?(?P<SB>[.0-9]+)/\\$?(?P<BB>[.0-9]+) (?P<GAME>(Texas Hold\'em|Omaha Hi|Omaha|Razz))", re.MULTILINE)
     re_SplitHands    = re.compile(r'\n\n+')
-    re_HandInfo      = re.compile("\*\*\*\*\* Betfair Poker Hand History for Game (?P<HID>[0-9]+) \*\*\*\*\*\n(?P<LIMIT>NL|PL|) (?P<CURRENCY>\$|)?(?P<SB>[.0-9]+)/\$?(?P<BB>[.0-9]+) (?P<GAMETYPE>(Texas Hold\'em|Omaha|Razz)) - (?P<DATETIME>[a-zA-Z]+, [a-zA-Z]+ \d+, \d\d:\d\d:\d\d GMT \d\d\d\d)\nTable (?P<TABLE>[ a-zA-Z0-9]+) \d-max \(Real Money\)\nSeat (?P<BUTTON>[0-9]+)", re.MULTILINE)
-    re_Button        = re.compile(ur"^Seat (?P<BUTTON>\d+) is the button", re.MULTILINE)
-    re_PlayerInfo    = re.compile("Seat (?P<SEAT>[0-9]+): (?P<PNAME>.*)\s\(\s(\$(?P<CASH>[.0-9]+)) \)")
-    re_Board         = re.compile(ur"\[ (?P<CARDS>.+) \]")
+    re_HandInfo      = re.compile("\\*\\*\\*\\*\\* Betfair Poker Hand History for Game (?P<HID>[0-9]+) \\*\\*\\*\\*\\*\n(?P<LIMIT>NL|PL|) (?P<CURRENCY>\\$|)?(?P<SB>[.0-9]+)/\\$?(?P<BB>[.0-9]+) (?P<GAMETYPE>(Texas Hold\'em|Omaha|Razz)) - (?P<DATETIME>[a-zA-Z]+, [a-zA-Z]+ \\d+, \\d\\d:\\d\\d:\\d\\d GMT \\d\\d\\d\\d)\nTable (?P<TABLE>[ a-zA-Z0-9]+) \\d-max \\(Real Money\\)\nSeat (?P<BUTTON>[0-9]+)", re.MULTILINE)
+    re_Button        = re.compile(r"^Seat (?P<BUTTON>\d+) is the button", re.MULTILINE)
+    re_PlayerInfo    = re.compile(r"Seat (?P<SEAT>[0-9]+): (?P<PNAME>.*)\s\(\s(\$(?P<CASH>[.0-9]+)) \)")
+    re_Board         = re.compile(r"\[ (?P<CARDS>.+) \]")
 
 
     def compilePlayerRegexs(self,  hand):
@@ -49,15 +49,15 @@ class Betfair(HandHistoryConverter):
             self.compiledPlayers = players
             player_re = "(?P<PNAME>" + "|".join(map(re.escape, players)) + ")"
             log.debug("player_re: " + player_re)
-            self.re_PostSB          = re.compile("^%s posts small blind \[\$?(?P<SB>[.0-9]+)" % player_re, re.MULTILINE)
-            self.re_PostBB          = re.compile("^%s posts big blind \[\$?(?P<BB>[.0-9]+)" % player_re, re.MULTILINE)
+            self.re_PostSB          = re.compile(r"^%s posts small blind \[\$?(?P<SB>[.0-9]+)" % player_re, re.MULTILINE)
+            self.re_PostBB          = re.compile(r"^%s posts big blind \[\$?(?P<BB>[.0-9]+)" % player_re, re.MULTILINE)
             self.re_Antes           = re.compile("^%s antes asdf sadf sadf" % player_re, re.MULTILINE)
             self.re_BringIn         = re.compile("^%s antes asdf sadf sadf" % player_re, re.MULTILINE)
-            self.re_PostBoth        = re.compile("^%s posts small \& big blinds \[\$?(?P<SBBB>[.0-9]+)" % player_re, re.MULTILINE)
-            self.re_HeroCards       = re.compile("^Dealt to %s \[ (?P<CARDS>.*) \]" % player_re, re.MULTILINE)
-            self.re_Action          = re.compile("^%s (?P<ATYPE>bets|checks|raises to|raises|calls|folds)(\s\[\$(?P<BET>[.\d]+)\])?" % player_re, re.MULTILINE)
-            self.re_ShowdownAction  = re.compile("^%s shows \[ (?P<CARDS>.*) \]" % player_re, re.MULTILINE)
-            self.re_CollectPot      = re.compile("^%s wins \$(?P<POT>[.\d]+) (.*?\[ (?P<CARDS>.*?) \])?" % player_re, re.MULTILINE)
+            self.re_PostBoth        = re.compile(r"^%s posts small \& big blinds \[\$?(?P<SBBB>[.0-9]+)" % player_re, re.MULTILINE)
+            self.re_HeroCards       = re.compile(r"^Dealt to %s \[ (?P<CARDS>.*) \]" % player_re, re.MULTILINE)
+            self.re_Action          = re.compile(r"^%s (?P<ATYPE>bets|checks|raises to|raises|calls|folds)(\s\[\$(?P<BET>[.\d]+)\])?" % player_re, re.MULTILINE)
+            self.re_ShowdownAction  = re.compile(r"^%s shows \[ (?P<CARDS>.*) \]" % player_re, re.MULTILINE)
+            self.re_CollectPot      = re.compile(r"^%s wins \$(?P<POT>[.\d]+) (.*?\[ (?P<CARDS>.*?) \])?" % player_re, re.MULTILINE)
             self.re_SitsOut         = re.compile("^%s sits out" % player_re, re.MULTILINE)
             self.re_ShownCards      = re.compile(r"%s (?P<SEAT>[0-9]+) (?P<CARDS>adsfasdf)" % player_re, re.MULTILINE)
 
@@ -86,7 +86,7 @@ class Betfair(HandHistoryConverter):
                            'Razz' : ('stud','razz'),
                     '7 Card Stud' : ('stud','studhi')
                }
-        currencies = { u' €':'EUR', '$':'USD', '':'T$' }
+        currencies = { ' €':'EUR', '$':'USD', '':'T$' }
         if 'LIMIT' in mg:
             info['limitType'] = limits[mg['LIMIT']]
         if 'GAME' in mg:
@@ -168,7 +168,7 @@ class Betfair(HandHistoryConverter):
         #    streets PREFLOP, PREDRAW, and THIRD are special cases beacause
         #    we need to grab hero's cards
         for street in ('PREFLOP', 'DEAL'):
-            if street in hand.streets.keys():
+            if street in list(hand.streets.keys()):
                 m = self.re_HeroCards.finditer(hand.streets[street])
                 for found in m:
                     hand.hero = found.group('PNAME')

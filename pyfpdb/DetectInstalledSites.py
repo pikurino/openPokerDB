@@ -31,7 +31,6 @@ Situations not handled are:
     Multiple screennames using the computer
     TODO Unexpected dirs in HH dir (e.g. "archive" may become a heroname!)
     Non-standard installation locations
-    TODO Mac installations
 
 Typical Usage:
     See TestDetectInstalledSites.py
@@ -40,15 +39,12 @@ Todo:
     replace hardcoded site list with something more subtle
 
 """
-import platform
 import os
 
 import Configuration
 
-if platform.system() == 'Windows':
-    import winpaths
-    PROGRAM_FILES = winpaths.get_program_files()
-    LOCAL_APPDATA = winpaths.get_local_appdata()
+PROGRAM_FILES = os.environ.get('PROGRAMFILES')
+LOCAL_APPDATA = os.environ.get('LOCALAPPDATA')
 
 class DetectInstalledSites():
 
@@ -85,7 +81,7 @@ class DetectInstalledSites():
                                 #"Winamax",
                                 #"Everest" ]
 
-        self.supportedPlatforms = ["Linux", "XP", "Win7"]
+        self.supportedPlatforms = ["Win7"]
 
         if sitename == "All":
             for siteiter in self.supportedSites:
@@ -113,22 +109,15 @@ class DetectInstalledSites():
             self.detectMergeNetwork()
 
         if (self.pathfound and self.herofound):
-            self.pathfound = unicode(self.pathfound)
-            self.herofound = unicode(self.herofound)
+            self.pathfound = str(self.pathfound)
+            self.herofound = str(self.herofound)
             return {"detected":True, "hhpath":self.pathfound, "heroname":self.herofound}
         else:
             return {"detected":False, "hhpath":"", "heroname":""}
 
     def detectFullTilt(self):
 
-        if self.Config.os_family == "Linux":
-            hhp=os.path.expanduser("~/.wine/drive_c/Program Files/Full Tilt Poker/HandHistory/")
-        elif self.Config.os_family == "XP":
-            hhp=os.path.expanduser(PROGRAM_FILES+"\\Full Tilt Poker\\HandHistory\\")
-        elif self.Config.os_family == "Win7":
-            hhp=os.path.expanduser(PROGRAM_FILES+"\\Full Tilt Poker\\HandHistory\\")
-        else:
-            return
+        hhp=os.path.expanduser(PROGRAM_FILES+"\\Full Tilt Poker\\HandHistory\\")
 
         if os.path.exists(hhp):
             self.pathfound = hhp
@@ -145,14 +134,7 @@ class DetectInstalledSites():
         
     def detectPokerStars(self):
 
-        if self.Config.os_family == "Linux":
-            hhp=os.path.expanduser("~/.wine/drive_c/Program Files/PokerStars/HandHistory/")
-        elif self.Config.os_family == "XP":
-            hhp=os.path.expanduser(PROGRAM_FILES+"\\PokerStars\\HandHistory\\")
-        elif self.Config.os_family == "Win7":
-            hhp=os.path.expanduser(LOCAL_APPDATA+"\\PokerStars\\HandHistory\\")
-        else:
-            return
+        hhp=os.path.expanduser(LOCAL_APPDATA+"\\PokerStars\\HandHistory\\")
 
         if os.path.exists(hhp):
             self.pathfound = hhp
@@ -169,14 +151,7 @@ class DetectInstalledSites():
 
     def detectPartyPoker(self):
 
-        if self.Config.os_family == "Linux":
-            hhp=os.path.expanduser("~/.wine/drive_c/Program Files/PartyGaming/PartyPoker/HandHistory/")
-        elif self.Config.os_family == "XP":
-            hhp=os.path.expanduser(PROGRAM_FILES+"\\PartyGaming\\PartyPoker\\HandHistory\\")
-        elif self.Config.os_family == "Win7":
-            hhp=os.path.expanduser("c:\\Programs\\PartyGaming\\PartyPoker\\HandHistory\\")
-        else:
-            return
+        hhp=os.path.expanduser("c:\\Programs\\PartyGaming\\PartyPoker\\HandHistory\\")
 
         if os.path.exists(hhp):
             self.pathfound = hhp
@@ -208,14 +183,7 @@ class DetectInstalledSites():
                             "PDCPoker", ]
         
         for skin in merge_skin_names:
-            if self.Config.os_family == "Linux":
-                hhp=os.path.expanduser("~/.wine/drive_c/Program Files/"+skin+"/history/")
-            elif self.Config.os_family == "XP":
-                hhp=os.path.expanduser(PROGRAM_FILES+"\\"+skin+"\\history\\")            
-            elif self.Config.os_family == "Win7":
-                hhp=os.path.expanduser(PROGRAM_FILES+"\\"+skin+"\\history\\")
-            else:
-                return
+            hhp=os.path.expanduser(PROGRAM_FILES+"\\"+skin+"\\history\\")
 
             if os.path.exists(hhp):
                 self.pathfound = hhp

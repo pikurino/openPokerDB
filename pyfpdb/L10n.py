@@ -95,7 +95,7 @@ def get_installed_translations():
     la_list = []
     la_co_list = []
     
-    for (ident,la_co) in locale.windows_locale.iteritems():
+    for (ident,la_co) in locale.windows_locale.items():
         if gettext.find("fpdb", localedir="locale", languages=[la_co]):
             if "_" in la_co:
                 la, co = la_co.split("_",1)

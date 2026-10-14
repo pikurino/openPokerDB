@@ -56,13 +56,13 @@ class PokerStarsSummary(TourneySummary):
 
     substitutions = {
                      'LEGAL_ISO' : "USD|EUR|GBP|CAD|FPP",    # legal ISO currency codes
-                            'LS' : u"\$|\xe2\x82\xac|\u20AC|" # legal currency symbols - Euro(cp1252, utf-8)
+                            'LS' : "\\$|\xe2\x82\xac|\u20AC|" # legal currency symbols - Euro(cp1252, utf-8)
                     }
 
     
-    re_TourNo = re.compile("\#(?P<TOURNO>[0-9]+),")
+    re_TourNo = re.compile(r"\#(?P<TOURNO>[0-9]+),")
 
-    re_TourneyInfo = re.compile(u"""
+    re_TourneyInfo = re.compile(r"""
                         \#(?P<TOURNO>[0-9]+),\s
                         ((?P<LIMIT>No\sLimit|NO\sLIMIT|Limit|LIMIT|Pot\sLimit|POT\sLIMIT|Pot\sLimit\sPre\-Flop,\sNo\sLimit\sPost\-Flop)\s)?
                         (?P<GAME>Hold\'em|Razz|RAZZ|7\sCard\sStud|7\sCard\sStud\sHi/Lo|Omaha|Omaha\sHi/Lo|Badugi|Triple\sDraw\s2\-7\sLowball|Single\sDraw\s2\-7\sLowball|5\sCard\sDraw|HORSE|8\-Game|HOSE|Mixed\sOmaha\sH/L|Mixed\sHold\'em|Mixed\sPLH/PLO|Mixed\sNLH/PLO|Triple\sStud)\s+
@@ -76,9 +76,9 @@ class PokerStarsSummary(TourneySummary):
                         (?P<DATETIME>.*$)
                         """ % substitutions ,re.VERBOSE|re.MULTILINE)
 
-    re_Player = re.compile(u"""(?P<RANK>[0-9]+):\s(?P<NAME>.*)\s\(.*\),(\s)?((?P<CUR>[%(LS)s]?)(?P<WINNINGS>[,.0-9]+))?(?P<STILLPLAYING>still\splaying)?((?P<TICKET>Tournament\sTicket)\s\(WSOP\sStep\s(?P<LEVEL>\d)\))?(\s+)?""" % substitutions)
+    re_Player = re.compile(r"""(?P<RANK>[0-9]+):\s(?P<NAME>.*)\s\(.*\),(\s)?((?P<CUR>[%(LS)s]?)(?P<WINNINGS>[,.0-9]+))?(?P<STILLPLAYING>still\splaying)?((?P<TICKET>Tournament\sTicket)\s\(WSOP\sStep\s(?P<LEVEL>\d)\))?(\s+)?""" % substitutions)
 
-    re_DateTime = re.compile("""(?P<Y>[0-9]{4})\/(?P<M>[0-9]{2})\/(?P<D>[0-9]{2})[\- ]+(?P<H>[0-9]+):(?P<MIN>[0-9]+):(?P<S>[0-9]+)""", re.MULTILINE)
+    re_DateTime = re.compile(r"""(?P<Y>[0-9]{4})\/(?P<M>[0-9]{2})\/(?P<D>[0-9]{2})[\- ]+(?P<H>[0-9]+):(?P<MIN>[0-9]+):(?P<S>[0-9]+)""", re.MULTILINE)
 
     #re_WinningRankOne   = re.compile(u"^%(PLYR)s wins the tournament and receives %(CUR)s(?P<AMT>[\.0-9]+) - congratulations!$" %  substitutions, re.MULTILINE)
     #re_WinningRankOther = re.compile(u"^%(PLYR)s finished the tournament in (?P<RANK>[0-9]+)(st|nd|rd|th) place and received %(CUR)s(?P<AMT>[.0-9]+)\.$" %  substitutions, re.MULTILINE)
@@ -89,7 +89,7 @@ class PokerStarsSummary(TourneySummary):
     @staticmethod
     def getSplitRe(self, head):
         re_SplitTourneys = re.compile("PokerStars Tournament ")
-        re_HTMLSplitTourneys = re.compile("TR id=row_\d+")
+        re_HTMLSplitTourneys = re.compile(r"TR id=row_\d+")
         m = re.search("DOCTYPE HTML PUBLIC", head)
         if m != None:
             self.hhtype = "html"
@@ -169,7 +169,7 @@ class PokerStarsSummary(TourneySummary):
         self.startTime = HandHistoryConverter.changeTimezone(self.startTime, "ET", "UTC")
 
         if mg['CURRENCY'] == "$":     self.buyinCurrency="USD"
-        elif mg['CURRENCY'] == u"€":  self.buyinCurrency="EUR"
+        elif mg['CURRENCY'] == "€":  self.buyinCurrency="EUR"
         elif mg['CURRENCY'] == "FPP": self.buyinCurrency="PSFP"
         elif not mg['CURRENCY']:      self.buyinCurrency="play"
         if self.buyin == 0:           self.buyinCurrency="FREE"
@@ -191,7 +191,7 @@ class PokerStarsSummary(TourneySummary):
                 
             if 'CUR' in mg and mg['CUR'] != None:
                 if mg['CUR'] == "$":     self.currency="USD"
-                elif mg['CUR'] == u"€":  self.currency="EUR"
+                elif mg['CUR'] == "€":  self.currency="EUR"
                 elif mg['CUR'] == "FPP": self.currency="PSFP"
 
             if 'STILLPLAYING' in mg and mg['STILLPLAYING'] != None:

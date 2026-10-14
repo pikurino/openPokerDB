@@ -94,6 +94,8 @@ def site_alias(alias):
                 "Boss"           : "Boss",
                 "Cake"           : "Cake",
                 "Entraction"     : "Entraction",
+                "GG"             : "GGPoker",
+                "GGPoker"        : "GGPoker",
                 "Everest"        : "Everest",
                 "Everleaf"       : "Everleaf",
                 "FTP"            : "Full Tilt Poker",
@@ -119,17 +121,17 @@ def site_alias(alias):
               }
     try:
         tmp = aliases[alias]
-    except KeyError, e:
+    except KeyError as e:
         tmp = False
-        print (_("Alias '%s' unknown") % alias)
+        print((_("Alias '%s' unknown") % alias))
 
     return tmp
 
 if __name__== "__main__":
     (options, argv) = fpdb_options()
-    print "errorsToConsole =", options.errorsToConsole
-    print "database name   =", options.dbname
-    print "config file     =", options.config
+    print("errorsToConsole =", options.errorsToConsole)
+    print("database name   =", options.dbname)
+    print("config file     =", options.config)
 
-    print _("press enter to end")
+    print(_("press enter to end"))
     sys.stdin.readline()

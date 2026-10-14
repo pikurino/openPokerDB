@@ -369,8 +369,7 @@ def main(argv=None):
         config = Configuration.Config()
 
     settings = {}
-    if os.name == 'nt': settings['os'] = 'windows'
-    else:               settings['os'] = 'linuxmac'
+    settings['os'] = 'windows'
 
     settings.update(config.get_db_parameters())
     settings.update(config.get_import_parameters())

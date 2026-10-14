@@ -31,8 +31,8 @@ import logging
 log = logging.getLogger("parser")
 
 __ARCHIVE_PRE_HEADER_REGEX, re_SplitArchive = {}, {}
-__ARCHIVE_PRE_HEADER_REGEX['PokerStars'] = '^Hand #(\d+)\s*$'
-__ARCHIVE_PRE_HEADER_REGEX['Fulltilt'] ='\*{20}\s#\s\d+\s\*{20,25}\s?'
+__ARCHIVE_PRE_HEADER_REGEX['PokerStars'] = r'^Hand #(\d+)\s*$'
+__ARCHIVE_PRE_HEADER_REGEX['Fulltilt'] =r'\*{20}\s#\s\d+\s\*{20,25}\s?'
 re_SplitArchive['PokerStars'] = re.compile(__ARCHIVE_PRE_HEADER_REGEX['PokerStars'], re.MULTILINE)
 re_SplitArchive['Fulltilt'] = re.compile(__ARCHIVE_PRE_HEADER_REGEX['Fulltilt'], re.MULTILINE)
 
@@ -115,38 +115,40 @@ class IdentifySite:
     
     def getSiteRegex(self):
         re_identify = {}
-        re_identify['Fulltilt']     = re.compile(u'FullTiltPoker|Full\sTilt\sPoker\sGame\s#\d+:|Full\sTilt\sPoker\.fr')
-        re_identify['PokerStars']   = re.compile(u'(PokerStars|POKERSTARS)(\sGame|\sHand|\sHome\sGame|\sHome\sGame\sHand|Game|\sZoom\sHand|\sGAME)\s\#\d+:')
-        re_identify['Everleaf']     = re.compile(u'\*{5}\sHand\shistory\sfor\sgame\s#\d+\s|Partouche\sPoker\s')
-        re_identify['Boss']         = re.compile(u'<HISTORY\sID="\d+"\sSESSION=')
-        re_identify['OnGame']       = re.compile(u'\*{5}\sHistory\sfor\shand\s[A-Z0-9\-]+\s')
-        re_identify['Betfair']      = re.compile(u'\*{5}\sBetfair\sPoker\sHand\sHistory\sfor\sGame\s\d+\s')
-        re_identify['Absolute']     = re.compile(u'Stage\s#[A-Z0-9]+:')
-        re_identify['PartyPoker']   = re.compile(u'\*{5}\sHand\sHistory\s[fF]or\sGame\s\d+\s')
-        re_identify['PacificPoker'] = re.compile(u'\*{5}\sCassava\sHand\sHistory\sfor\sGame\s\d+\s')
-        re_identify['Merge']        = re.compile(u'<description\stype=')
-        re_identify['Pkr']          = re.compile(u'Starting\sHand\s\#\d+')
-        re_identify['iPoker']       = re.compile(u'<session\ssessioncode="\-?\d+">')
-        re_identify['Winamax']      = re.compile(u'Winamax\sPoker\s\-\s(CashGame|Tournament\s")')
-        re_identify['Everest']      = re.compile(u'<SESSION\stime="\d+"\stableName=".+"\sid=')
-        re_identify['Cake']         = re.compile(u'Hand\#[A-Z0-9]+\s\-\s')
-        re_identify['Entraction']   = re.compile(u'Game\s\#\s\d+\s\-\s')
-        re_identify['BetOnline']    = re.compile(u'(BetOnline\sPoker|PayNoRake|ActionPoker\.com|Gear\sPoker)\sGame\s\#\d+')
-        re_identify['PokerTracker'] = re.compile(u'(EverestPoker\sGame\s\#|GAME\s\#|MERGE_GAME\s\#|\*{2}\sGame\sID\s)\d+')
-        re_identify['Microgaming']  = re.compile(u'<Game\s(hhversion="\d"\s)?id=\"\d+\"\sdate=\"[\d\-\s:]+\"\sunicodetablename')
-        re_identify['FullTiltPokerSummary'] = re.compile(u'Full\sTilt\sPoker\.fr\sTournament|Full\sTilt\sPoker\sTournament\sSummary')
-        re_identify['PokerStarsSummary']    = re.compile(u'PokerStars\sTournament\s\#\d+')
-        re_identify['PacificPokerSummary']  = re.compile(u'\*{5}\sCassava Tournament Summary\s\*{5}')
-        re_identify['MergeSummary']         = re.compile(u"<meta\sname='Creator'\scontent='support@carbonpoker.ag'\s/>")
-        re_identify['WinamaxSummary']       = re.compile(u"Winamax\sPoker\s\-\sTournament\ssummary")
-        re_identify['PokerTrackerSummary']  = re.compile(u"PokerTracker")
+        re_identify['Fulltilt']     = re.compile(r'FullTiltPoker|Full\sTilt\sPoker\sGame\s#\d+:|Full\sTilt\sPoker\.fr')
+        re_identify['PokerStars']   = re.compile(r'(PokerStars|POKERSTARS)(\sGame|\sHand|\sHome\sGame|\sHome\sGame\sHand|Game|\sZoom\sHand|\sGAME)\s\#\d+:')
+        re_identify['Everleaf']     = re.compile(r'\*{5}\sHand\shistory\sfor\sgame\s#\d+\s|Partouche\sPoker\s')
+        re_identify['Boss']         = re.compile(r'<HISTORY\sID="\d+"\sSESSION=')
+        re_identify['OnGame']       = re.compile(r'\*{5}\sHistory\sfor\shand\s[A-Z0-9\-]+\s')
+        re_identify['Betfair']      = re.compile(r'\*{5}\sBetfair\sPoker\sHand\sHistory\sfor\sGame\s\d+\s')
+        re_identify['Absolute']     = re.compile(r'Stage\s#[A-Z0-9]+:')
+        re_identify['PartyPoker']   = re.compile(r'\*{5}\sHand\sHistory\s[fF]or\sGame\s\d+\s')
+        re_identify['PacificPoker'] = re.compile(r'\*{5}\sCassava\sHand\sHistory\sfor\sGame\s\d+\s')
+        re_identify['Merge']        = re.compile(r'<description\stype=')
+        re_identify['Pkr']          = re.compile(r'Starting\sHand\s\#\d+')
+        re_identify['iPoker']       = re.compile(r'<session\ssessioncode="\-?\d+">')
+        re_identify['Winamax']      = re.compile(r'Winamax\sPoker\s\-\s(CashGame|Tournament\s")')
+        re_identify['Everest']      = re.compile(r'<SESSION\stime="\d+"\stableName=".+"\sid=')
+        re_identify['Cake']         = re.compile(r'Hand\#[A-Z0-9]+\s\-\s')
+        re_identify['Entraction']   = re.compile(r'Game\s\#\s\d+\s\-\s')
+        re_identify['BetOnline']    = re.compile(r'(BetOnline\sPoker|PayNoRake|ActionPoker\.com|Gear\sPoker)\sGame\s\#\d+')
+        re_identify['PokerTracker'] = re.compile(r'(EverestPoker\sGame\s\#|GAME\s\#|MERGE_GAME\s\#|\*{2}\sGame\sID\s)\d+')
+        re_identify['Microgaming']  = re.compile('<Game\\s(hhversion="\\d"\\s)?id=\"\\d+\"\\sdate=\"[\\d\\-\\s:]+\"\\sunicodetablename')
+        # Doc §3 line 1: 'Poker Hand #RC<digits>:' is unique to GGPoker Rush & Cash.
+        re_identify['GGPoker']      = re.compile(r'^Poker Hand \#RC\d+:', re.MULTILINE)
+        re_identify['FullTiltPokerSummary'] = re.compile(r'Full\sTilt\sPoker\.fr\sTournament|Full\sTilt\sPoker\sTournament\sSummary')
+        re_identify['PokerStarsSummary']    = re.compile(r'PokerStars\sTournament\s\#\d+')
+        re_identify['PacificPokerSummary']  = re.compile(r'\*{5}\sCassava Tournament Summary\s\*{5}')
+        re_identify['MergeSummary']         = re.compile(r"<meta\sname='Creator'\scontent='support@carbonpoker.ag'\s/>")
+        re_identify['WinamaxSummary']       = re.compile(r"Winamax\sPoker\s\-\sTournament\ssummary")
+        re_identify['PokerTrackerSummary']  = re.compile("PokerTracker")
         return re_identify
 
     def generateSiteList(self, hhcs):
         """Generates a ordered dictionary of site, filter and filter name for each site in hhcs"""
         if not hhcs:
             hhcs = self.config.hhcs
-        for site, hhc in hhcs.iteritems():
+        for site, hhc in hhcs.items():
             filter = hhc.converter
             filter_name = filter.replace("ToFpdb", "")
             summary = hhc.summaryImporter
@@ -198,7 +200,7 @@ class IdentifySite:
         """Identifies the site the hh file originated from"""
         f = FPDBFile(path)
         f.kodec = kodec
-        for id, site in self.sitelist.iteritems():
+        for id, site in self.sitelist.items():
             filter_name = site.filter_name
             m = self.re_identify[filter_name].search(whole_file)
             if m and filter_name in ('Fulltilt', 'PokerStars'):
@@ -209,7 +211,7 @@ class IdentifySite:
                 f.ftype = "hh"
                 return f
 
-        for id, site in self.sitelist.iteritems():
+        for id, site in self.sitelist.items():
             filter_name = site.filter_name
             if site.summary in self.re_identify:
                 m = self.re_identify[site.summary].search(whole_file)
@@ -229,10 +231,10 @@ class IdentifySite:
             f.site = Site('PokerTracker', filter, filter_name, summary, obj)
             if m1:
                 f.ftype = "hh"
-                re_SplitHands = re.compile(u'\*{2}\sGame\sID\s')
+                re_SplitHands = re.compile(r'\*{2}\sGame\sID\s')
                 if re_SplitHands.search( m1.group()):
                     f.site.line_delimiter = None
-                    f.site.re_SplitHands = re.compile(u'\n\n\n\*{2}\sGame\sID\s')
+                    f.site.re_SplitHands = re.compile('\n\n\n\\*{2}\\sGame\\sID\\s')
             else:
                 f.ftype = "summary"
             return f
@@ -241,18 +243,14 @@ class IdentifySite:
 
     def getFilesForSite(self, sitename, ftype):
         l = []
-        for name, f in self.filelist.iteritems():
+        for name, f in self.filelist.items():
             if f.ftype != None and f.site.name == sitename and f.ftype == "hh":
                 l.append(f)
         return l
 
     def fetchGameTypes(self):
-        for name, f in self.filelist.iteritems():
+        for name, f in self.filelist.items():
             if f.ftype != None and f.ftype == "hh":
-                try: #TODO: this is a dirty hack. Borrowed from fpdb_import
-                    name = unicode(name, "utf8", "replace")
-                except TypeError:
-                    print TypeError
                 mod = __import__(f.site.hhc_fname)
                 obj = getattr(mod, f.site.filter_name, None)
                 hhc = obj(self.config, in_path = name, sitename = f.site.hhc_fname, autostart = False)
@@ -269,16 +267,16 @@ def main(argv=None):
     IdSite = IdentifySite(config)
     start = time()
     IdSite.scan(in_path)
-    print 'duration', time() - start
+    print('duration', time() - start)
 
-    print "\n----------- SITE LIST -----------"
-    for sid, site in IdSite.sitelist.iteritems():
-        print "%2d: Name: %s HHC: %s Summary: %s" %(sid, site.name, site.filter_name, site.summary)
-    print "----------- END SITE LIST -----------"
+    print("\n----------- SITE LIST -----------")
+    for sid, site in IdSite.sitelist.items():
+        print("%2d: Name: %s HHC: %s Summary: %s" %(sid, site.name, site.filter_name, site.summary))
+    print("----------- END SITE LIST -----------")
 
-    print "\n----------- ID REGRESSION FILES -----------"
+    print("\n----------- ID REGRESSION FILES -----------")
     count = 0
-    for f, ffile in IdSite.filelist.iteritems():
+    for f, ffile in IdSite.filelist.items():
         tmp = ""
         tmp += ": Type: %s " % ffile.ftype
         count += 1
@@ -286,13 +284,13 @@ def main(argv=None):
             tmp += "Conv: %s" % ffile.site.hhc_fname
         elif ffile.ftype == "summary":
             tmp += "Conv: %s" % ffile.site.summary
-        print f, tmp
-    print count, 'files identified'
-    print "----------- END ID REGRESSION FILES -----------"
+        print(f, tmp)
+    print(count, 'files identified')
+    print("----------- END ID REGRESSION FILES -----------")
 
-    print "----------- RETRIEVE FOR SINGLE SITE -----------"
+    print("----------- RETRIEVE FOR SINGLE SITE -----------")
     IdSite.getFilesForSite("PokerStars", "hh")
-    print "----------- END RETRIEVE FOR SINGLE SITE -----------"
+    print("----------- END RETRIEVE FOR SINGLE SITE -----------")
 
 if __name__ == '__main__':
     sys.exit(main())

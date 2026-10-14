@@ -55,13 +55,7 @@ Configuration.set_logfile(u"HUD-log.txt")
 c = Configuration.Config(file=options.config, dbname=options.dbname)
 log = logging.getLogger("hud")
 
-# get the correct module for the current os
-if c.os_family == 'Linux':
-    import XTables as Tables
-elif c.os_family == 'Mac':
-    import OSXTables as Tables
-elif c.os_family in ('XP', 'Win7'):
-    import WinTables as Tables
+import WinTables as Tables
 
 
 class HUD_main(object):
@@ -120,8 +114,6 @@ class HUD_main(object):
             cards = os.path.join(self.config.graphics_path,'fpdb-cards.png')
             if os.path.exists(cards):
                 self.main_window.set_icon_from_file(cards)
-            elif os.path.exists('/usr/share/pixmaps/fpdb-cards.png'):
-                self.main_window.set_icon_from_file('/usr/share/pixmaps/fpdb-cards.png')
             
             if not options.hidden:
                 self.main_window.show_all()

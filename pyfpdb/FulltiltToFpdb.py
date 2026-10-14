@@ -35,9 +35,9 @@ class Fulltilt(HandHistoryConverter):
 
     substitutions = {
                      'LEGAL_ISO' : "USD|EUR|GBP|CAD|FPP",       # legal ISO currency codes
-                            'LS' : u"\$|\u20AC|\xe2\x82\xac|",  # legal currency symbols - Euro(cp1252, utf-8)
-                           'TAB' : u"-\u2013'\s\da-zA-Z#_\.",     # legal characters for tablename
-                           'NUM' : u".,\dKM",                     # legal characters in number format
+                            'LS' : "\\$|\u20AC|\xe2\x82\xac|",  # legal currency symbols - Euro(cp1252, utf-8)
+                           'TAB' : "-\u2013'\\s\\da-zA-Z#_\\.",     # legal characters for tablename
+                           'NUM' : r".,\dKM",                     # legal characters in number format
                     }
 
     Lim_Blinds = {  '0.04': ('0.01', '0.02'),    '0.10': ('0.02', '0.05'),     '0.20': ('0.05', '0.10'),
@@ -70,7 +70,7 @@ class Fulltilt(HandHistoryConverter):
                   }
 
     # Static regexes
-    re_GameInfo     = re.compile(u'''\#(?P<HID>[0-9]+):\s
+    re_GameInfo     = re.compile(r'''\#(?P<HID>[0-9]+):\s
                                     (?:(?P<TOURNAMENT>.+)\s\((?P<TOURNO>\d+)\),\s)?
                                     .+
                                     -\s(?P<CURRENCY>[%(LS)s]|)?
@@ -83,7 +83,7 @@ class Fulltilt(HandHistoryConverter):
                                  ''' % substitutions, re.VERBOSE)
     re_SplitHands   = re.compile(r"\n\n\n+")
     re_TailSplitHands   = re.compile(r"(\n\n+)")
-    re_HandInfo     = re.compile(u'''\#(?P<HID>[0-9]+):\s
+    re_HandInfo     = re.compile(r'''\#(?P<HID>[0-9]+):\s
                                     (?:(?P<TOURNAMENT>.+)\s\((?P<TOURNO>\d+)\),\s)?
                                     ((Table|Match)\s)?
                                     (?P<PLAY>Play\sChip\s|PC)?
@@ -96,21 +96,21 @@ class Fulltilt(HandHistoryConverter):
                                     (?P<DATETIME>.+$)
                                     (?P<PARTIAL>\(partial\))?\s
                                  ''' % substitutions, re.MULTILINE|re.VERBOSE)
-    re_Cancelled = re.compile("Hand\s\#[0-9]+\shas\sbeen\scanceled?")
-    re_TourneyExtraInfo  = re.compile('''(((?P<TOURNEY_NAME>[^$]+)?
+    re_Cancelled = re.compile(r"Hand\s\#[0-9]+\shas\sbeen\scanceled?")
+    re_TourneyExtraInfo  = re.compile(r'''(((?P<TOURNEY_NAME>[^$]+)?
                                          (?P<CURRENCY>[%(LS)s])?(?P<BUYIN>[.0-9]+)?(\s*\+\s*[%(LS)s]?(?P<FEE>[.0-9]+))?
                                          (\s(?P<SPECIAL>(KO|Heads\sUp|Heads\-Up|Head\'s\sUp|Matrix\s\dx|Rebuy|Madness)))?
                                          (\s(?P<SHOOTOUT>Shootout))?
                                          (\s(?P<SNG>Sit\s&\sGo))?
                                          (\s\((?P<TURBO>Turbo)\))?)|(?P<UNREADABLE_INFO>.+))
                                     ''' % substitutions, re.VERBOSE)
-    re_Button       = re.compile('^The button is in seat #(?P<BUTTON>\d+)', re.MULTILINE)
-    re_PlayerInfo   = re.compile('Seat (?P<SEAT>[0-9]+): (?P<PNAME>.{2,15}) \([%(LS)s]?(?P<CASH>[%(NUM)s]+)\)(?P<SITOUT>, is sitting out)?$' % substitutions, re.MULTILINE)
-    re_SummarySitout = re.compile('Seat (?P<SEAT>[0-9]+): (?P<PNAME>.{2,15}?) (\(button\) )?is sitting out?$' % substitutions, re.MULTILINE)
+    re_Button       = re.compile(r'^The button is in seat #(?P<BUTTON>\d+)', re.MULTILINE)
+    re_PlayerInfo   = re.compile(r'Seat (?P<SEAT>[0-9]+): (?P<PNAME>.{2,15}) \([%(LS)s]?(?P<CASH>[%(NUM)s]+)\)(?P<SITOUT>, is sitting out)?$' % substitutions, re.MULTILINE)
+    re_SummarySitout = re.compile(r'Seat (?P<SEAT>[0-9]+): (?P<PNAME>.{2,15}?) (\(button\) )?is sitting out?$' % substitutions, re.MULTILINE)
     re_Board        = re.compile(r"\[(?P<CARDS>.+)\]")
 
     #static regex for tourney purpose
-    re_TourneyInfo  = re.compile('''Tournament\sSummary\s
+    re_TourneyInfo  = re.compile(r'''Tournament\sSummary\s
                                     (?P<TOURNAMENT_NAME>[^$(]+)?\s*
                                     ((?P<CURRENCY>[%(LS)s]|)?(?P<BUYIN>[.0-9]+)\s*\+\s*[%(LS)s]?(?P<FEE>[.0-9]+)\s)?
                                     ((?P<SPECIAL>(KO|Heads\sUp|Matrix\s\dx|Rebuy|Madness))\s)?
@@ -123,24 +123,24 @@ class Fulltilt(HandHistoryConverter):
                                     (\((?P<TURBO2>Turbo)\)\s)?
                                     (?P<LIMIT>(No\sLimit|Pot\sLimit|Limit))?
                                 ''' % substitutions, re.VERBOSE)
-    re_TourneyBuyInFee      = re.compile("Buy-In: (?P<BUYIN_CURRENCY>[%(LS)s]|)?(?P<BUYIN>[.0-9]+) \+ [%(LS)s]?(?P<FEE>[.0-9]+)" % substitutions)
-    re_TourneyBuyInChips    = re.compile("Buy-In Chips: (?P<BUYINCHIPS>\d+)")
-    re_TourneyEntries       = re.compile("(?P<ENTRIES>\d+) Entries")
+    re_TourneyBuyInFee      = re.compile(r"Buy-In: (?P<BUYIN_CURRENCY>[%(LS)s]|)?(?P<BUYIN>[.0-9]+) \+ [%(LS)s]?(?P<FEE>[.0-9]+)" % substitutions)
+    re_TourneyBuyInChips    = re.compile(r"Buy-In Chips: (?P<BUYINCHIPS>\d+)")
+    re_TourneyEntries       = re.compile(r"(?P<ENTRIES>\d+) Entries")
     re_TourneyPrizePool     = re.compile("Total Prize Pool: (?P<PRIZEPOOL_CURRENCY>[%(LS)s]|)?(?P<PRIZEPOOL>[.,0-9]+)" % substitutions)
     re_TourneyRebuyCost     = re.compile("Rebuy: (?P<REBUY_CURRENCY>[%(LS)s]|)?(?P<REBUY_COST>[.,0-9]+)"% substitutions)
     re_TourneyAddOnCost     = re.compile("Add-On: (?P<ADDON_CURRENCY>[%(LS)s]|)?(?P<ADDON_COST>[.,0-9]+)"% substitutions)
-    re_TourneyRebuyCount    = re.compile("performed (?P<REBUY_COUNT>\d+) Rebuy")
-    re_TourneyAddOnCount    = re.compile("performed (?P<ADDON_COUNT>\d+) Add-On")
-    re_TourneyRebuysTotal   = re.compile("Total Rebuys: (?P<REBUY_TOTAL>\d+)")
-    re_TourneyAddOnsTotal   = re.compile("Total Add-Ons: (?P<ADDONS_TOTAL>\d+)")
-    re_TourneyRebuyChips    = re.compile("Rebuy Chips: (?P<REBUY_CHIPS>\d+)")
-    re_TourneyAddOnChips    = re.compile("Add-On Chips: (?P<ADDON_CHIPS>\d+)")
+    re_TourneyRebuyCount    = re.compile(r"performed (?P<REBUY_COUNT>\d+) Rebuy")
+    re_TourneyAddOnCount    = re.compile(r"performed (?P<ADDON_COUNT>\d+) Add-On")
+    re_TourneyRebuysTotal   = re.compile(r"Total Rebuys: (?P<REBUY_TOTAL>\d+)")
+    re_TourneyAddOnsTotal   = re.compile(r"Total Add-Ons: (?P<ADDONS_TOTAL>\d+)")
+    re_TourneyRebuyChips    = re.compile(r"Rebuy Chips: (?P<REBUY_CHIPS>\d+)")
+    re_TourneyAddOnChips    = re.compile(r"Add-On Chips: (?P<ADDON_CHIPS>\d+)")
     re_TourneyKOBounty      = re.compile("Knockout Bounty: (?P<KO_BOUNTY_CURRENCY>[%(LS)s]|)?(?P<KO_BOUNTY_AMOUNT>[.,0-9]+)" % substitutions)
-    re_TourneyKoCount       = re.compile("received (?P<COUNT_KO>\d+) Knockout Bounty Award(s)?")
+    re_TourneyKoCount       = re.compile(r"received (?P<COUNT_KO>\d+) Knockout Bounty Award(s)?")
     re_TourneyTimeInfo      = re.compile("Tournament started: (?P<STARTTIME>.*)\nTournament ((?P<IN_PROGRESS>is still in progress)?|(finished:(?P<ENDTIME>.*))?)$")
 
-    re_TourneysPlayersSummary = re.compile("^(?P<RANK>(Still Playing|\d+))( - |: )(?P<PNAME>[^\n,]+)(, )?(?P<WINNING_CURRENCY>[%(LS)s]|)?(?P<WINNING>[.\d]+)?" % substitutions, re.MULTILINE)
-    re_TourneyHeroFinishingP = re.compile("(?P<HERO_NAME>.*) finished in (?P<HERO_FINISHING_POS>\d+)(st|nd|rd|th) place")
+    re_TourneysPlayersSummary = re.compile("^(?P<RANK>(Still Playing|\\d+))( - |: )(?P<PNAME>[^\n,]+)(, )?(?P<WINNING_CURRENCY>[%(LS)s]|)?(?P<WINNING>[.\\d]+)?" % substitutions, re.MULTILINE)
+    re_TourneyHeroFinishingP = re.compile(r"(?P<HERO_NAME>.*) finished in (?P<HERO_FINISHING_POS>\d+)(st|nd|rd|th) place")
 
 #TODO: See if we need to deal with play money tourney summaries -- Not right now (they shouldn't pass the re_TourneyInfo)
 ##Full Tilt Poker Tournament Summary 250 Play Money Sit & Go (102909471) Hold'em No Limit
@@ -151,9 +151,9 @@ class Fulltilt(HandHistoryConverter):
 
 # These regexes are for FTP only
     re_Mixed        = re.compile(r'\s\-\s(?P<MIXED>7\-Game|8\-Game|9\-Game|10\-Game|HA|HEROS|HO|HOE|HORSE|HOSE|OA|OE|SE)\s\-\s', re.VERBOSE)
-    re_Max          = re.compile("(?P<MAX>\d+)( max)?", re.MULTILINE)
+    re_Max          = re.compile(r"(?P<MAX>\d+)( max)?", re.MULTILINE)
     # NB: if we ever match "Full Tilt Poker" we should also match "FullTiltPoker", which PT Stud erroneously exports.
-    re_DateTime     = re.compile("""((?P<H>[0-9]+):(?P<MIN>[0-9]+):(?P<S>[0-9]+)\s(?P<TZ>\w+)\s-\s(?P<Y>[0-9]{4})\/(?P<M>[0-9]{2})\/(?P<D>[0-9]{2})|(?P<H2>[0-9]+):(?P<MIN2>[0-9]+)\s(?P<TZ2>\w+)\s-\s\w+\,\s(?P<M2>\w+)\s(?P<D2>\d+)\,\s(?P<Y2>[0-9]{4}))(?P<PARTIAL>\s\(partial\))?""", re.MULTILINE)
+    re_DateTime     = re.compile(r"""((?P<H>[0-9]+):(?P<MIN>[0-9]+):(?P<S>[0-9]+)\s(?P<TZ>\w+)\s-\s(?P<Y>[0-9]{4})\/(?P<M>[0-9]{2})\/(?P<D>[0-9]{2})|(?P<H2>[0-9]+):(?P<MIN2>[0-9]+)\s(?P<TZ2>\w+)\s-\s\w+\,\s(?P<M2>\w+)\s(?P<D2>\d+)\,\s(?P<Y2>[0-9]{4}))(?P<PARTIAL>\s\(partial\))?""", re.MULTILINE)
 
     def compilePlayerRegexs(self,  hand):
         players = set([player[1] for player in hand.players])
@@ -243,7 +243,7 @@ class Fulltilt(HandHistoryConverter):
                        'OE' : 'oe',
                        'SE' : 'se'
             }
-        currencies = { u'€':'EUR', '$':'USD', '':'T$' }
+        currencies = { '€':'EUR', '$':'USD', '':'T$' }
 
         if 'SB' in mg:
             info['sb'] = self.clearMoneyString(mg['SB'])
@@ -341,7 +341,7 @@ class Fulltilt(HandHistoryConverter):
                 if (n.group('CURRENCY') is not None and n.group('BUYIN') is not None and n.group('FEE') is not None):
                     if n.group('CURRENCY')=="$":
                         hand.buyinCurrency="USD"
-                    elif n.group('CURRENCY')==u"€":
+                    elif n.group('CURRENCY')=="€":
                         hand.buyinCurrency="EUR"
                     else:
                         hand.buyinCurrency="FREE"
@@ -477,7 +477,7 @@ class Fulltilt(HandHistoryConverter):
     def readButton(self, hand):
         try:
             hand.buttonpos = int(self.re_Button.search(hand.handText).group('BUTTON'))
-        except AttributeError, e:
+        except AttributeError as e:
             # FTP has no indication that a hand is cancelled.
             raise FpdbHandPartial(_("%s Failed to detect button (hand #%s cancelled?)") % ("readButton:", hand.handid))
 
@@ -485,7 +485,7 @@ class Fulltilt(HandHistoryConverter):
 #    streets PREFLOP, PREDRAW, and THIRD are special cases beacause
 #    we need to grab hero's cards
         for street in ('PREFLOP', 'DEAL'):
-            if street in hand.streets.keys():
+            if street in list(hand.streets.keys()):
                 m = self.re_HeroCards.finditer(hand.streets[street])
                 for found in m:
 #                    if m == None:
@@ -495,7 +495,7 @@ class Fulltilt(HandHistoryConverter):
                     newcards = found.group('NEWCARDS').split(' ')
                     hand.addHoleCards(street, hand.hero, closed=newcards, shown=False, mucked=False, dealt=True)
 
-        for street, text in hand.streets.iteritems():
+        for street, text in hand.streets.items():
             if not text or street in ('PREFLOP', 'DEAL'): continue  # already done these
             m = self.re_HeroCards.finditer(hand.streets[street])
             for found in m:
@@ -537,7 +537,7 @@ class Fulltilt(HandHistoryConverter):
             elif action.group('ATYPE') == ' stands pat':
                 hand.addStandsPat( street, action.group('PNAME'), action.group('CARDS'))
             else:
-                print (_("DEBUG:") + " " + _("Unimplemented %s: '%s' '%s'") % ("readAction", action.group('PNAME'), action.group('ATYPE')))
+                print((_("DEBUG:") + " " + _("Unimplemented %s: '%s' '%s'") % ("readAction", action.group('PNAME'), action.group('ATYPE'))))
 
 
     def readShowdownActions(self, hand):
@@ -548,7 +548,7 @@ class Fulltilt(HandHistoryConverter):
 
     def readCollectPot(self,hand):
         for m in self.re_CollectPot.finditer(hand.handText):
-            hand.addCollectPot(player=m.group('PNAME'),pot=re.sub(u',',u'',m.group('POT')))
+            hand.addCollectPot(player=m.group('PNAME'),pot=re.sub(',','',m.group('POT')))
 
     def readShownCards(self,hand):
         for m in self.re_ShownCards.finditer(hand.handText):
@@ -609,7 +609,7 @@ class Fulltilt(HandHistoryConverter):
                   'Stud Hi' : ('stud','studhi'), 
                  'Stud H/L' : ('stud','studhilo')
                }
-        currencies = { u' €':'EUR', '$':'USD', '':'T$' }
+        currencies = { ' €':'EUR', '$':'USD', '':'T$' }
         info['limitType'] = limits[mg['LIMIT']]
         if mg['GAME'] is not None:
             (info['base'], info['category']) = games[mg['GAME']]
@@ -796,7 +796,7 @@ class Fulltilt(HandHistoryConverter):
 
                 tourney.addPlayer(rank, a.group('PNAME'), winnings, "USD", 0, 0, 0) #TODO: make it store actual winnings currency
             else:
-                print (_("Player finishing stats unreadable : %s") % a)
+                print((_("Player finishing stats unreadable : %s") % a))
 
         # Find Hero
         n = self.re_TourneyHeroFinishingP.search(playersText)

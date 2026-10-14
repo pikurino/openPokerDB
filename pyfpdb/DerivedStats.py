@@ -17,6 +17,7 @@
 
 #fpdb modules
 import L10n
+from functools import reduce
 _ = L10n.get_translation()
 import Card
 from decimal_wrapper import Decimal
@@ -151,13 +152,21 @@ class DerivedStats():
         #self.hands['maxSeats']      = hand.maxseats
         self.hands['texture']       = None                    # No calculation done for this yet.
         self.hands['tourneyId']     = hand.tourneyId
+        # 'rush' and 'comment' are Hands columns that no 2010-era parser writes. A converter marks a
+        # fast-fold hand with hand.rush = True and puts site-only facts with no column of their own
+        # into hand.comment. They stay out of the dict when the parser writes neither, so that the
+        # legacy regression sidecars (which predate the columns) keep comparing key-for-key.
+        if hasattr(hand, 'rush'):
+            self.hands['rush']      = hand.rush
+        if getattr(hand, 'comment', None) is not None:
+            self.hands['comment']   = hand.comment
 
         # This (i think...) is correct for both stud and flop games, as hand.board['street'] disappears, and
         # those values remain default in stud.
         boardcards = []
         for street in hand.communityStreets:
             boardcards += hand.board[street]
-        boardcards += [u'0x', u'0x', u'0x', u'0x', u'0x']
+        boardcards += ['0x', '0x', '0x', '0x', '0x']
         cards = [Card.encodeCard(c) for c in boardcards[0:5]]
         self.hands['boardcard1'] = cards[0]
         self.hands['boardcard2'] = cards[1]
@@ -175,7 +184,7 @@ class DerivedStats():
                 street_i = street + str(boardId)
                 if street_i in hand.board:
                     boardcards += hand.board[street_i]
-            boardcards = [u'0x', u'0x', u'0x', u'0x', u'0x'] + boardcards
+            boardcards = ['0x', '0x', '0x', '0x', '0x'] + boardcards
             cards = [Card.encodeCard(c) for c in boardcards[-5:]]
             self.hands['boards'] += [[boardId] + cards]
 
@@ -253,7 +262,7 @@ class DerivedStats():
 
         for player in hand.players:
             hcs = hand.join_holecards(player[1], asList=True)
-            hcs = hcs + [u'0x']*18
+            hcs = hcs + ['0x']*18
             #for i, card in enumerate(hcs[:20, 1): #Python 2.6 syntax
             #    self.handsplayers[player[1]]['card%s' % i] = Card.encodeCard(card)
             for i, card in enumerate(hcs[:20]):
@@ -356,7 +365,7 @@ class DerivedStats():
                     holecards[pname]['committed'] = 0
                     holeplayers.append(pname)
                     
-                    for street, board in boards.iteritems():
+                    for street, board in boards.items():
                         streetId = streets[street]
                         if streetId > 0:
                             streetstring = 'street%sSeen' % str(streetId)
@@ -378,7 +387,7 @@ class DerivedStats():
                                         cards  = [str(c) for c in cards]
                                         bcards = []
                                 holecards[pname]['cards'] += [cards]
-                                if (u'0x' not in cards) and ((base=='hold' and len(board['board'][n])>=3) or (base!='hold' and len(cards)==reduce(lambda x, y: y-x,hrange))):
+                                if ('0x' not in cards) and ((base=='hold' and len(board['board'][n])>=3) or (base!='hold' and len(cards)==reduce(lambda x, y: y-x,hrange))):
                                      if hilo == 'h':
                                          best_hi = pokereval.best_hand("hi", cards, bcards)
                                          hicards = [pokereval.card2string(i) for i in best_hi[1:]]
@@ -476,11 +485,11 @@ class DerivedStats():
                     else: 
                         boardId, portion = n, 1
                     if board['allin']:
-                        if len([p for p in players if p in holecards and u'0x' not in holecards[p]['cards'][n]]) > 0:
+                        if len([p for p in players if p in holecards and '0x' not in holecards[p]['cards'][n]]) > 0:
                             if not startstreet: startstreet = street
                             bcards = [str(b) for b in board['board'][n]]
                             b = bcards + (5 - len(board['board'][n])) * ['__']
-                            holeshow = [holecards[p]['hole'] for p in players if self.handsplayers[p]['sawShowdown']and u'0x' not in holecards[p]['cards'][n]]
+                            holeshow = [holecards[p]['hole'] for p in players if self.handsplayers[p]['sawShowdown']and '0x' not in holecards[p]['cards'][n]]
                             if len(holeshow)> 1:
                                 evs = pokereval.poker_eval(game = game
                                                           ,iterations = Card.iter[streetId]
@@ -700,7 +709,7 @@ class DerivedStats():
         for i in range(5): self.hands['street%dRaises' % i] = 0
 
         for (i, street) in enumerate(hand.actionStreets[1:]):
-            self.hands['street%dRaises' % i] = len(filter( lambda action: action[1] in ('raises','bets'), hand.actions[street]))
+            self.hands['street%dRaises' % i] = len([action for action in hand.actions[street] if action[1] in ('raises','bets')])
 
     def calcSteals(self, hand):
         """Fills raiseFirstInChance|raisedFirstIn, fold(Bb|Sb)ToSteal(Chance|)
@@ -814,7 +823,7 @@ class DerivedStats():
                     self.handsplayers[name]['street%dCBChance' % (i+1)] = True
                     self.handsplayers[name]['street%dCBDone' % (i+1)] = self.betStreet(hand.actionStreets[i+2], name)
                     if self.handsplayers[name]['street%dCBDone' % (i+1)]:
-                        for pname, folds in self.foldTofirstsBetOrRaiser(street, name).iteritems():
+                        for pname, folds in self.foldTofirstsBetOrRaiser(street, name).items():
                             #print "DEBUG: hand.handid, pname.encode('utf8'), street, folds, '--', name, 'lastbet on ', hand.actionStreets[i+1]
                             self.handsplayers[pname]['foldToStreet%sCBChance' % (i+1)] = True
                             self.handsplayers[pname]['foldToStreet%sCBDone' % (i+1)] = folds

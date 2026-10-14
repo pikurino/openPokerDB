@@ -6755,12 +6755,15 @@ class Sql:
                                             street2Pot,
                                             street3Pot,
                                             street4Pot,
-                                            showdownPot
+                                            showdownPot,
+                                            rush,
+                                            comment
                                              )
                                              values
                                               (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s,
                                                %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s,
-                                               %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s)"""
+                                               %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s,
+                                               %s, %s)"""
 
 
         self.query['store_hands_players'] = """insert into HandsPlayers (
@@ -7008,28 +7011,28 @@ class Sql:
         ################################
         # queries for dumpDatabase
         ################################
-        for table in (u'Autorates', u'Backings', u'Gametypes', u'Hands', u'HandsActions', u'HandsPlayers', u'HudCache', u'Players', u'RawHands', u'RawTourneys', u'Settings', u'Sites', u'TourneyTypes', u'Tourneys', u'TourneysPlayers'):
-            self.query['get'+table] = u"SELECT * FROM "+table
+        for table in ('Autorates', 'Backings', 'Gametypes', 'Hands', 'HandsActions', 'HandsPlayers', 'HudCache', 'Players', 'RawHands', 'RawTourneys', 'Settings', 'Sites', 'TourneyTypes', 'Tourneys', 'TourneysPlayers'):
+            self.query['get'+table] = "SELECT * FROM "+table
         
         ################################
         # placeholders and substitution stuff
         ################################
         if db_server == 'mysql':
-            self.query['placeholder'] = u'%s'
+            self.query['placeholder'] = '%s'
         elif db_server == 'postgresql':
-            self.query['placeholder'] = u'%s'
+            self.query['placeholder'] = '%s'
         elif db_server == 'sqlite':
-            self.query['placeholder'] = u'?'
+            self.query['placeholder'] = '?'
 
 
         # If using sqlite, use the ? placeholder instead of %s
         if db_server == 'sqlite':
-            for k,q in self.query.iteritems():
+            for k,q in self.query.items():
                 self.query[k] = re.sub('%s','?',q)
 
 if __name__== "__main__":
 #    just print the default queries and exit
     s = Sql()
     for key in s.query:
-        print "For query " + key + ", sql ="
-        print s.query[key]
+        print("For query " + key + ", sql =")
+        print(s.query[key])

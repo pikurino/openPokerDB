@@ -646,15 +646,15 @@ or None if we fail to get the info """
             fulltable = False
             for action in m2:
                 acted[action.group('PSEAT')] = True
-                if acted.keys() == seated.keys(): # We've faound all players
+                if list(acted.keys()) == list(seated.keys()): # We've faound all players
                     fulltable = True
                     break
             if fulltable != True:
-                for seatno in seated.keys():
+                for seatno in list(seated.keys()):
                     if seatno not in acted:
                         del seated[seatno]
 
-                for seatno in acted.keys():
+                for seatno in list(acted.keys()):
                     if seatno not in seated:
                         log.error(_("MergeToFpdb.readPlayerStacks: '%s' Seat:%s acts but not listed") % (hand.handid, seatno))
                         raise FpdbParseError
@@ -822,7 +822,7 @@ or None if we fail to get the info """
                     hand.gametype['sb'] = str(int(Decimal(hand.gametype['bb']))/2)
             hand.sb = hand.gametype['sb']
             hand.bb = hand.gametype['bb']
-            for player, blindtype in allinBlinds.iteritems():
+            for player, blindtype in allinBlinds.items():
                 if blindtype=='big blind':
                     self.adjustMergeTourneyStack(hand, player, hand.bb)
                     hand.addBlind(player, 'big blind', hand.bb)
@@ -862,7 +862,7 @@ or None if we fail to get the info """
 #    we need to grab hero's cards
         herocards = []
         for street in ('PREFLOP', 'DEAL'):
-            if street in hand.streets.keys():
+            if street in list(hand.streets.keys()):
                 m = self.re_HeroCards.finditer(hand.streets[street])
                 for found in m:
 #                    if m == None:
@@ -873,7 +873,7 @@ or None if we fail to get the info """
                     hand.addHoleCards(street, hand.hero, closed=cards, shown=False, mucked=False, dealt=True)
 
         for street in hand.holeStreets:
-            if hand.streets.has_key(street):
+            if street in hand.streets:
                 if not hand.streets[street] or street in ('PREFLOP', 'DEAL') or hand.gametype['base'] == 'hold': continue  # already done these
                 m = self.re_HeroCards.finditer(hand.streets[street])
                 for found in m:
@@ -993,7 +993,7 @@ or None if we fail to get the info """
             # Ignoring table number as it doesn't appear to be in the window title
             # "$200 Freeroll - NL Holdem - 20:00 (46302299) - Table 1" -- the table number doesn't matter, it seems to always be 1 in the HH.
             # "Fun Step 1 (4358174) - Table 1"
-            regex = "\(" + re.escape(str(tournament)) + "\)"
+            regex = r"\(" + re.escape(str(tournament)) + r"\)"
         log.info("Merge.getTableTitleRe: table_name='%s' tournament='%s' table_number='%s'" % (table_name, tournament, table_number))
         log.info("Merge.getTableTitleRe: returns: '%s'" % (regex))
         return regex

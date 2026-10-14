@@ -33,13 +33,13 @@ class Cake(HandHistoryConverter):
     filetype = "text"
     codepage = ("utf8", "cp1252")
     siteId   = 17
-    sym = {'USD': "\$", 'CAD': "\$", 'T$': "", "EUR": "\xe2\x82\xac", "GBP": "\xa3", "play": ""}
+    sym = {'USD': r"\$", 'CAD': r"\$", 'T$': "", "EUR": "\xe2\x82\xac", "GBP": "\xa3", "play": ""}
     substitutions = {
                      'LEGAL_ISO' : "USD|EUR|GBP|CAD|FPP",      # legal ISO currency codes
-                            'LS' : u"\$|\xe2\x82\xac|\u20ac|", # legal currency symbols - Euro(cp1252, utf-8)
+                            'LS' : "\\$|\xe2\x82\xac|\u20ac|", # legal currency symbols - Euro(cp1252, utf-8)
                            'PLYR': r'(?P<PNAME>.+?)',
-                            'CUR': u"(\$|\xe2\x82\xac|\u20ac|)",
-                            'NUM' :u".,\d\xa0",
+                            'CUR': "(\\$|\xe2\x82\xac|\u20ac|)",
+                            'NUM' :".,\\d\xa0",
                     }
                     
     # translations from captured groups to fpdb info strings
@@ -72,10 +72,10 @@ class Cake(HandHistoryConverter):
                           'Omaha Hi/Lo' : ('hold','omahahilo'),
                             'OmahaHiLo' : ('hold','omahahilo'),
                }
-    currencies = { u'€':'EUR', '$':'USD', '':'T$' }
+    currencies = { '€':'EUR', '$':'USD', '':'T$' }
 
     # Static regexes
-    re_GameInfo     = re.compile(u"""
+    re_GameInfo     = re.compile(r"""
           Hand\#(?P<HID>[A-Z0-9]+)\s+\-\s+
           (?P<TABLE>(?P<BUYIN1>(?P<BIAMT1>(%(LS)s)[%(NUM)s]+)\sNLH\s(?P<MAX1>\d+)\smax)?.+?)\s(\((?P<MAX>\d+)\-[Mm]ax\)\s)?((?P<TOURNO>T\d+)|\d+)\s
           (\-\-\s(TICKET|CASH|TICKETCASH)\s\-\-\s(?P<BUYIN>(?P<BIAMT>(%(LS)s)[%(NUM)s]+)\s\+\s(?P<BIRAKE>(%(LS)s)[%(NUM)s]+))\s\-\-\s(?P<TMAX>\d+)\sMax\s)?
@@ -89,7 +89,7 @@ class Cake(HandHistoryConverter):
           (?P<DATETIME>.*$)
           """ % substitutions, re.MULTILINE|re.VERBOSE)
 
-    re_PlayerInfo   = re.compile(u"""
+    re_PlayerInfo   = re.compile(r"""
           ^Seat\s(?P<SEAT>[0-9]+):\s
           (?P<PNAME>.+?)\s
           \((%(LS)s)?(?P<CASH>[%(NUM)s]+)\sin\schips\)
@@ -97,10 +97,10 @@ class Cake(HandHistoryConverter):
           re.MULTILINE|re.VERBOSE)
 
     re_SplitHands   = re.compile('\n\n+')
-    re_Button       = re.compile('Dealer: Seat (?P<BUTTON>\d+)', re.MULTILINE)
+    re_Button       = re.compile(r'Dealer: Seat (?P<BUTTON>\d+)', re.MULTILINE)
     re_Board        = re.compile(r"\[(?P<CARDS>.+)\]")
 
-    re_DateTime     = re.compile("""(?P<Y>[0-9]{4})[\/\-\.](?P<M>[0-9]{2})[\/\-\.](?P<D>[0-9]{2})[\- ]+(?P<H>[0-9]+):(?P<MIN>[0-9]+):(?P<S>[0-9]+)""", re.MULTILINE)
+    re_DateTime     = re.compile(r"""(?P<Y>[0-9]{4})[\/\-\.](?P<M>[0-9]{2})[\/\-\.](?P<D>[0-9]{2})[\- ]+(?P<H>[0-9]+):(?P<MIN>[0-9]+):(?P<S>[0-9]+)""", re.MULTILINE)
     re_PostSB       = re.compile(r"^%(PLYR)s: posts small blind %(CUR)s(?P<SB>[%(NUM)s]+)(\s\(EUR\s(%(CUR)s)?(?P<EUROVALUE>[%(NUM)s]+)\))?$" %  substitutions, re.MULTILINE)
     re_PostBB       = re.compile(r"^%(PLYR)s: posts big blind %(CUR)s(?P<BB>[%(NUM)s]+)(\s\(EUR\s(%(CUR)s)?(?P<EUROVALUE>[%(NUM)s]+)\))?$" %  substitutions, re.MULTILINE)
     re_Antes        = re.compile(r"^%(PLYR)s: posts ante of %(CUR)s(?P<ANTE>[%(NUM)s]+)(\s\(EUR\s(%(CUR)s)?(?P<EUROVALUE>[%(NUM)s]+)\))?" % substitutions, re.MULTILINE)
@@ -226,9 +226,9 @@ class Cake(HandHistoryConverter):
                 if hand.tourNo!=None:
                     if info[key].find("$")!=-1:
                         hand.buyinCurrency="USD"
-                    elif info[key].find(u"£")!=-1:
+                    elif info[key].find("£")!=-1:
                         hand.buyinCurrency="GBP"
-                    elif info[key].find(u"€")!=-1:
+                    elif info[key].find("€")!=-1:
                         hand.buyinCurrency="EUR"
                     elif re.match("^[0-9+]*$", info[key]):
                         hand.buyinCurrency="play"
@@ -238,12 +238,12 @@ class Cake(HandHistoryConverter):
                         raise FpdbParseError
                     
                     if key == 'BUYIN1':
-                        info['BIAMT1']  = self.clearMoneyString(info['BIAMT1'].strip(u'$€£'))
+                        info['BIAMT1']  = self.clearMoneyString(info['BIAMT1'].strip('$€£'))
                         hand.buyin = int(100*Decimal(info['BIAMT1']))
                         hand.fee = 0
                     else:
-                        info['BIAMT']  = self.clearMoneyString(info['BIAMT'].strip(u'$€£'))
-                        info['BIRAKE'] = self.clearMoneyString(info['BIRAKE'].strip(u'$€£'))
+                        info['BIAMT']  = self.clearMoneyString(info['BIAMT'].strip('$€£'))
+                        info['BIRAKE'] = self.clearMoneyString(info['BIRAKE'].strip('$€£'))
                         hand.buyin = int(100*Decimal(info['BIAMT']))
                         hand.fee = int(100*Decimal(info['BIRAKE']))
                 
@@ -322,7 +322,7 @@ class Cake(HandHistoryConverter):
 
     def readHeroCards(self, hand):
         for street in ('PREFLOP', 'DEAL'):
-            if street in hand.streets.keys():
+            if street in list(hand.streets.keys()):
                 m = self.re_HeroCards.finditer(hand.streets[street])
                 for found in m:
                     hand.hero = found.group('PNAME')
@@ -351,14 +351,14 @@ class Cake(HandHistoryConverter):
             elif actionType == ' is all in':
                 hand.addAllIn(street, action.group('PNAME'), bet)
             else:
-                print (_("DEBUG:") + " " + _("Unimplemented %s: '%s' '%s'") % ("readAction", action.group('PNAME'), action.group('ATYPE')))
+                print((_("DEBUG:") + " " + _("Unimplemented %s: '%s' '%s'") % ("readAction", action.group('PNAME'), action.group('ATYPE'))))
 
     def readShowdownActions(self, hand):
         pass
 
     def readCollectPot(self,hand):
         for m in self.re_CollectPot.finditer(hand.handText):
-            if not re.search('Tournament:\s', m.group('PNAME')):
+            if not re.search(r'Tournament:\s', m.group('PNAME')):
                 hand.addCollectPot(player=m.group('PNAME'),pot=self.convertMoneyString('POT', m))
 
     def readShownCards(self,hand):

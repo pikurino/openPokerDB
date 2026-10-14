@@ -28,11 +28,11 @@ from TourneySummary import *
 
 class iPokerSummary(TourneySummary):
     substitutions = {
-                     'LS'  : u"\$|\xe2\x82\xac|\xe2\u201a\xac|\u20ac|\xc2\xa3|\£|",
+                     'LS'  : "\\$|\xe2\x82\xac|\xe2\u201a\xac|\u20ac|\xc2\xa3|\\£|",
                      'PLYR': r'(?P<PNAME>[a-zA-Z0-9]+)',
                      'NUM' : r'.,0-9',
                     }
-    currencies = { u'€':'EUR', '$':'USD', '':'T$', u'£':'GBP' }
+    currencies = { '€':'EUR', '$':'USD', '':'T$', '£':'GBP' }
 
     limits = { 'No Limit':'nl', 'Pot Limit':'pl', 'Limit':'fl', 'LIMIT':'fl' }
     
@@ -42,7 +42,7 @@ class iPokerSummary(TourneySummary):
                 '7 Card Stud L' : ('stud','studhi'),
                 '5 Card Stud L' : ('stud','5_studhi'),
                     'Holdem NL' : ('hold','holdem'),
-                   u'Holdem БЛ' : ('hold','holdem'),
+                   'Holdem БЛ' : ('hold','holdem'),
                     'Holdem SL' : ('hold','holdem'), #Spanish NL
                     'Holdem LZ' : ('hold','holdem'), #Limit
                     'Holdem PL' : ('hold','holdem'), #Limit
@@ -56,7 +56,7 @@ class iPokerSummary(TourneySummary):
                      
             }
 
-    re_GameType = re.compile(ur"""
+    re_GameType = re.compile(r"""
             <gametype>(?P<GAME>(5|7)\sCard\sStud\sL|Holdem\s(NL|SL|L|LZ|PL|БЛ)|Omaha\s(L|PL|LP)|Omaha\sHi\-Lo\s(L|PL|LP)|LH\s(?P<LSB>[%(NUM)s]+)/(?P<LBB>[%(NUM)s]+).+?)(\s(%(LS)s)?(?P<SB>[%(NUM)s]+)/(%(LS)s)?(?P<BB>[%(NUM)s]+))?</gametype>\s+?
             <tablename>(?P<TABLE>.+)?</tablename>\s+?
             (<(tablecurrency|tournamentcurrency)>.*</(tablecurrency|tournamentcurrency)>\s+?)?
@@ -76,8 +76,8 @@ class iPokerSummary(TourneySummary):
             """ % substitutions, re.MULTILINE|re.VERBOSE)
     re_Buyin = re.compile(r"""(?P<BUYIN>[%(NUM)s]+)""" % substitutions, re.MULTILINE|re.VERBOSE)
     re_TotalBuyin = re.compile(r"""(?P<BUYIN>(?P<BIAMT>[%(LS)s%(NUM)s]+)\s\+\s?(?P<BIRAKE>[%(LS)s%(NUM)s]+)?)""" % substitutions, re.MULTILINE|re.VERBOSE)
-    re_DateTime1 = re.compile("""(?P<D>[0-9]{2})\-(?P<M>[a-zA-Z]{3})\-(?P<Y>[0-9]{4})\s+(?P<H>[0-9]+):(?P<MIN>[0-9]+)(:(?P<S>[0-9]+))?""", re.MULTILINE)
-    re_DateTime2 = re.compile("""(?P<D>[0-9]{2})\/(?P<M>[0-9]{2})\/(?P<Y>[0-9]{4})\s+(?P<H>[0-9]+):(?P<MIN>[0-9]+)(:(?P<S>[0-9]+))?""", re.MULTILINE)
+    re_DateTime1 = re.compile(r"""(?P<D>[0-9]{2})\-(?P<M>[a-zA-Z]{3})\-(?P<Y>[0-9]{4})\s+(?P<H>[0-9]+):(?P<MIN>[0-9]+)(:(?P<S>[0-9]+))?""", re.MULTILINE)
+    re_DateTime2 = re.compile(r"""(?P<D>[0-9]{2})\/(?P<M>[0-9]{2})\/(?P<Y>[0-9]{4})\s+(?P<H>[0-9]+):(?P<MIN>[0-9]+)(:(?P<S>[0-9]+))?""", re.MULTILINE)
 
     codepage = ["utf-8"]
 
@@ -110,7 +110,7 @@ class iPokerSummary(TourneySummary):
         if self.games[mg['GAME']][0] == 'stud':
             self.gametype['limitType']  = 'fl'
         if self.games[mg['GAME']][0] == 'hold':
-            if mg['GAME'][-2:] == 'NL' or mg['GAME'][-2:] == 'SL' or mg['GAME'][-2:] == u'БЛ':
+            if mg['GAME'][-2:] == 'NL' or mg['GAME'][-2:] == 'SL' or mg['GAME'][-2:] == 'БЛ':
                 self.gametype['limitType']  = 'nl'
             elif mg['GAME'][-2:] == 'PL' or mg['GAME'][-2:] == 'LP':
                 self.gametype['limitType'] = 'pl'
@@ -186,9 +186,9 @@ class iPokerSummary(TourneySummary):
 
 
     def convert_to_decimal(self, string):
-        dec = string.strip(u'$£€&euro;\u20ac')
-        dec = dec.replace(u',','.')
-        dec = dec.replace(u' ','')
+        dec = string.strip('$£€&euro;\u20ac')
+        dec = dec.replace(',','.')
+        dec = dec.replace(' ','')
         m = self.re_Buyin.search(dec)
         if m:
             dec = Decimal(m.group('BUYIN'))

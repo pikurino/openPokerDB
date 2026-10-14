@@ -76,27 +76,27 @@ class MergeSummary(TourneySummary):
 
     substitutions = {
                      'LEGAL_ISO' : "USD|EUR|GBP|CAD|FPP",     # legal ISO currency codes
-                            'LS' : u"\$|\xe2\x82\xac|\u20ac|" # legal currency symbols
+                            'LS' : "\\$|\xe2\x82\xac|\u20ac|" # legal currency symbols
                     }
     re_GameTypeHH = re.compile(r'<description type="(?P<GAME>Holdem|Omaha|Omaha|Omaha\sH/L8|2\-7\sLowball|A\-5\sLowball|Badugi|5\-Draw\sw/Joker|5\-Draw|7\-Stud|7\-Stud\sH/L8|5\-Stud|Razz|HORSE|RASH|HA|HO|SHOE|HOSE|HAR)(?P<TYPE>\sTournament)?" stakes="(?P<LIMIT>[a-zA-Z ]+)(\s\(?\$?(?P<SB>[.0-9]+)?/?\$?(?P<BB>[.0-9]+)?(?P<blah>.*)\)?)?"(\sversion="\d+")?/>\s?', re.MULTILINE)
     re_HandInfoHH = re.compile(r'<game id="(?P<HID1>[0-9]+)-(?P<HID2>[0-9]+)" starttime="(?P<DATETIME>.+?)" numholecards="[0-9]+" gametype="[0-9]+" (multigametype="(?P<MULTIGAMETYPE>\d+)" )?(seats="(?P<SEATS>[0-9]+)" )?realmoney="(?P<REALMONEY>(true|false))" data="[0-9]+[|:](?P<TABLENAME>[^|:]+)[|:](?P<TDATA>[^|:]+)[|:]?.*>', re.MULTILINE)
     re_DateTimeHH = re.compile(r'(?P<Y>[0-9]{4})\/(?P<M>[0-9]{2})\/(?P<D>[0-9]{2})[\- ]+(?P<H>[0-9]+):(?P<MIN>[0-9]+):(?P<S>[0-9]+)', re.MULTILINE)
     
     re_HTMLName = re.compile("Name</th><td>(?P<NAME>.+?)</td>")
-    re_HTMLGameType = re.compile("""Game Type</th><td>(?P<LIMIT>Fixed Limit|No Limit|Pot Limit) (?P<GAME>Texas\sHoldem|Omaha|Omaha\sHiLo|2\-7\sLow\sTriple\sDraw|Badugi|Seven\sCard\sStud|Seven\sCard\sStud\sHiLo|Five\sCard\sStud|Razz|HORSE|HA|HO)</td>""")
+    re_HTMLGameType = re.compile(r"""Game Type</th><td>(?P<LIMIT>Fixed Limit|No Limit|Pot Limit) (?P<GAME>Texas\sHoldem|Omaha|Omaha\sHiLo|2\-7\sLow\sTriple\sDraw|Badugi|Seven\sCard\sStud|Seven\sCard\sStud\sHiLo|Five\sCard\sStud|Razz|HORSE|HA|HO)</td>""")
     re_HTMLBuyIn = re.compile("Buy In</th><td>(?P<BUYIN>[0-9,.]+)</td>")
     re_HTMLFee = re.compile("Entry Fee</th><td>(?P<FEE>[0-9,.]+)</td>")
     re_HTMLBounty = re.compile("Bounty</th><td>(?P<KOBOUNTY>.+?)</td>")
     re_HTMLAddons = re.compile("Addons</th><td>(?P<ADDON>.+?)</td>")
     re_HTMLRebuy = re.compile("Rebuys</th><td>(?P<REBUY>.+?)</td>")
     re_HTMLTourNo = re.compile("Game ID</th><td>(?P<TOURNO>[0-9]+)-1</td>")
-    re_HTMLPlayer = re.compile(u"""<tr><td align="center">(?P<RANK>\d+)</td><td>(?P<PNAME>.+?)</td><td>(?P<WINNINGS>.+?)</td></tr>""")
-    re_HTMLDetails = re.compile(u"""<p class="text">(?P<LABEL>.+?) : (?P<VALUE>.+?)</p>""")
-    re_HTMLPrizepool = re.compile(u"""Total Prizepool</th><td>(?P<PRIZEPOOL>[0-9,.]+)</td>""")
+    re_HTMLPlayer = re.compile(r"""<tr><td align="center">(?P<RANK>\d+)</td><td>(?P<PNAME>.+?)</td><td>(?P<WINNINGS>.+?)</td></tr>""")
+    re_HTMLDetails = re.compile("""<p class="text">(?P<LABEL>.+?) : (?P<VALUE>.+?)</p>""")
+    re_HTMLPrizepool = re.compile("""Total Prizepool</th><td>(?P<PRIZEPOOL>[0-9,.]+)</td>""")
     re_HTMLStartTime = re.compile("Start Time</th><td>(?P<STARTTIME>.+?)</td>")
-    re_HTMLDateTime = re.compile("\w+?\s+?(?P<D>\d+)\w+?\s+(?P<M>\w+)\s+(?P<Y>\d+),?\s+(?P<H>\d+):(?P<MIN>\d+):(?P<S>\d+)")
+    re_HTMLDateTime = re.compile(r"\w+?\s+?(?P<D>\d+)\w+?\s+(?P<M>\w+)\s+(?P<Y>\d+),?\s+(?P<H>\d+):(?P<MIN>\d+):(?P<S>\d+)")
     
-    re_Ticket = re.compile(u""" / Ticket (?P<VALUE>[0-9.]+)&euro;""")
+    re_Ticket = re.compile(""" / Ticket (?P<VALUE>[0-9.]+)&euro;""")
 
     codepage = ["utf-8"]
 
@@ -133,7 +133,7 @@ class MergeSummary(TourneySummary):
                 handsDict[tourNo] = [handText]
             else:
                 hands.append(handText)
-        for tourNo, hands in handsDict.iteritems():
+        for tourNo, hands in handsDict.items():
             self.resetInfo()
             self.db.resetBulkCache()
             m = self.re_GameTypeHH.search(hands[0])
@@ -305,7 +305,7 @@ class MergeSummary(TourneySummary):
                 self.tourneyName = m.group('NAME')[:40]
                 if m.group('NAME').find("$")!=-1:
                     self.buyinCurrency="USD"
-                elif m.group('NAME').find(u"€")!=-1:
+                elif m.group('NAME').find("€")!=-1:
                     self.buyinCurrency="EUR"
             m = self.re_HTMLPrizepool.search(str(p))
             if m:
@@ -364,15 +364,15 @@ class MergeSummary(TourneySummary):
                 if m.group('WINNINGS') != None:
                     if m.group('WINNINGS').find("$")!=-1:
                         self.currency="USD"
-                    elif m.group('WINNINGS').find(u"€")!=-1:
+                    elif m.group('WINNINGS').find("€")!=-1:
                         self.currency="EUR"
                     winnings = int(100*convert_to_decimal(m.group('WINNINGS')))
                 self.addPlayer(rank, name, winnings, self.currency, rebuyCount, addOnCount, koCount)
                 
 def convert_to_decimal(string):
-    dec = string.strip(u'€&euro;\u20ac$')
-    dec = dec.replace(u',','.')
-    dec = dec.replace(u' ','')
+    dec = string.strip('€&euro;\u20ac$')
+    dec = dec.replace(',','.')
+    dec = dec.replace(' ','')
     dec = Decimal(dec)
     return dec
 

@@ -101,13 +101,13 @@ class Award:
 
 class Game:
     def __init__(self, node):
-        print node
+        print(node)
         self.tags = {}
         for tag in ( ('GAME_NAME', 'game_name'), ('MAX', 'max'), ('HIGHLOW', 'high_low'),
                      ('STRUCTURE', 'structure'), ('MIXED', 'mixed') ):
             L = node.getElementsByTagName(tag[0])
             if (not L): continue
-            print L
+            print(L)
             for node2 in L:
                 title = ""
                 for node3 in node2.childNodes:
@@ -184,12 +184,12 @@ if __name__== "__main__":
     xml_string = file.read()
     file.close()
     
-    print xml_string + "\n\n\n"
+    print(xml_string + "\n\n\n")
     h = HandHistory(xml_string, ('ALL'))
-    print h.GAME
-    print h.POSTS
-    print h.BETTING
-    print h.AWARDS
+    print(h.GAME)
+    print(h.POSTS)
+    print(h.BETTING)
+    print(h.AWARDS)
     
-    for p in h.PLAYERS.keys():
-        print h.PLAYERS[p]
+    for p in list(h.PLAYERS.keys()):
+        print(h.PLAYERS[p])

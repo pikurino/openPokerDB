@@ -52,13 +52,13 @@ class FullTiltPokerSummary(TourneySummary):
 
     substitutions = {
                      'LEGAL_ISO' : "USD|EUR|GBP|CAD|FPP|FTP",      # legal ISO currency codes
-                            'LS' : u"\$|\xe2\x82\xac|\u20ac|", # legal currency symbols - Euro(cp1252, utf-8)
-                           'TAB' : u"-\u2013'\s\da-zA-Z#_\.",      # legal characters for tablename
-                           'NUM' : u".,\d",                    # legal characters in number format
+                            'LS' : "\\$|\xe2\x82\xac|\u20ac|", # legal currency symbols - Euro(cp1252, utf-8)
+                           'TAB' : "-\u2013'\\s\\da-zA-Z#_\\.",      # legal characters for tablename
+                           'NUM' : r".,\d",                    # legal characters in number format
                     }
 
-    re_TourNo = re.compile("\#(?P<TOURNO>[0-9]+),")
-    re_TourneyInfo = re.compile(u"""
+    re_TourNo = re.compile(r"\#(?P<TOURNO>[0-9]+),")
+    re_TourneyInfo = re.compile(r"""
                         \((?P<TOURNO>[0-9]+)\)
                         (\s+)?(\sMatch\s\d\s)?
                         (?P<GAME>Hold\'em|Razz|RAZZ|7\sCard\sStud|7\sCard\sStud\sHi/Lo|Stud\sH/L|Stud\sHi|Omaha|Omaha\sHi|Omaha\sHi/Lo|Omaha\sH/L|Badugi|Triple\sDraw\s2\-7\sLowball|2-7\sTriple\sDraw|5\sCard\sDraw|7-Game\sMixed|HORSE|10-Game\sMixed)\s+
@@ -82,12 +82,12 @@ class FullTiltPokerSummary(TourneySummary):
                         Tournament\sstarted:\s(?P<DATETIME>((?P<Y>[\d]{4})\/(?P<M>[\d]{2})\/(?P<D>[\d]+)\s+(?P<H>[\d]+):(?P<MIN>[\d]+):(?P<S>[\d]+)\s??(?P<TZ>[A-Z]+)\s|\w+,\s(?P<MONTH>\w+)\s(?P<DAY>\d+),\s(?P<YEAR>[\d]{4})\s(?P<HOUR>\d+):(?P<MIN2>\d+)))
                                """ % substitutions ,re.VERBOSE|re.MULTILINE|re.DOTALL)
 
-    re_Currency = re.compile(u"""(?P<CURRENCY>[%(LS)s]|FPP|FTP)""" % substitutions)
+    re_Currency = re.compile("""(?P<CURRENCY>[%(LS)s]|FPP|FTP)""" % substitutions)
 
-    re_Player = re.compile(u"""(?P<RANK>[\d]+):\s(?P<NAME>[^,\r\n]{2,15})(,\s(?P<CURRENCY>[%(LS)s])(?P<WINNINGS>[.\d]+))?(,\s(?P<TICKET>Step\s(?P<LEVEL>\d)\sTicket))?""" % substitutions)
-    re_Finished = re.compile(u"""(?P<NAME>[^,\r\n]{2,15}) finished in (?P<RANK>[\d]+)\S\S place""")
+    re_Player = re.compile("""(?P<RANK>[\\d]+):\\s(?P<NAME>[^,\r\n]{2,15})(,\\s(?P<CURRENCY>[%(LS)s])(?P<WINNINGS>[.\\d]+))?(,\\s(?P<TICKET>Step\\s(?P<LEVEL>\\d)\\sTicket))?""" % substitutions)
+    re_Finished = re.compile("""(?P<NAME>[^,\r\n]{2,15}) finished in (?P<RANK>[\\d]+)\\S\\S place""")
 
-    re_DateTime = re.compile("\[(?P<Y>[0-9]{4})\/(?P<M>[0-9]{2})\/(?P<D>[0-9]{2})[\- ]+(?P<H>[0-9]+):(?P<MIN>[0-9]+):(?P<S>[0-9]+)")
+    re_DateTime = re.compile(r"\[(?P<Y>[0-9]{4})\/(?P<M>[0-9]{2})\/(?P<D>[0-9]{2})[\- ]+(?P<H>[0-9]+):(?P<MIN>[0-9]+):(?P<S>[0-9]+)")
 
     codepage = ["utf-16", "cp1252", "utf-8"]
 
@@ -159,7 +159,7 @@ class FullTiltPokerSummary(TourneySummary):
         mg = m.groupdict()
         
         if mg['CURRENCY'] == "$":     self.buyinCurrency="USD"
-        elif mg['CURRENCY'] == u"€":  self.buyinCurrency="EUR"
+        elif mg['CURRENCY'] == "€":  self.buyinCurrency="EUR"
         elif mg['CURRENCY'] == "FPP": self.buyinCurrency="FTFP"
         elif mg['CURRENCY'] == "FTP": self.buyinCurrency="FTFP"
         if self.buyin ==0:            self.buyinCurrency="FREE"
@@ -180,7 +180,7 @@ class FullTiltPokerSummary(TourneySummary):
             if 'WINNINGS' in mg and mg['WINNINGS'] != None:
                 winnings = int(100*Decimal(mg['WINNINGS']))
                 if mg['CURRENCY'] == "$":     self.currency="USD"
-                elif mg['CURRENCY'] == u"€":  self.currency="EUR"
+                elif mg['CURRENCY'] == "€":  self.currency="EUR"
                 elif mg['CURRENCY'] == "FPP": self.currency="FTFP"
                 elif mg['CURRENCY'] == "FTP": self.currency="FTFP"
                 

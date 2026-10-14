@@ -1,0 +1,15 @@
+# Python build artefacts
+__pycache__/
+*.pyc
+*.pyo
+.venv/
+
+# Local database and log files written by the importer/HUD
+*.db3
+*-journal
+fpdb-log.txt
+
+# Hand histories are private play data and are never committed. The GGPoker
+# fixtures and the corpus they were built from live on disk only; see
+# DESIGN.md section 6.
+/pyfpdb/regression-test-files/cash/GGPoker/

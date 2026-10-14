@@ -27,11 +27,11 @@ import codecs
 import Options
 import Configuration
 from Exceptions import *
-from cStringIO import StringIO
+from io import StringIO
 
 (options, argv) = Options.fpdb_options()
 
-__ARCHIVE_PRE_HEADER_REGEX='^Hand #(\d+)\s*$|\*{20}\s#\s\d+\s\*+\s+'
+__ARCHIVE_PRE_HEADER_REGEX=r'^Hand #(\d+)\s*$|\*{20}\s#\s\d+\s\*+\s+'
 re_SplitArchive = re.compile(__ARCHIVE_PRE_HEADER_REGEX)
 codepage = ["utf-16", "utf-8", "cp1252"]
 
@@ -73,7 +73,7 @@ class SplitHandHistory:
             try:
                 infile = codecs.open(self.in_path, 'r', kodec)
             except IOError:
-                print (_('File not found'))
+                print((_('File not found')))
                 sys.exit(2)
         
         #Split with do_hands_per_file if archive and paragraphs if a regular hh
@@ -83,7 +83,7 @@ class SplitHandHistory:
                 nn += 1
                 check = self.do_hands_per_file(infile, nn)
                 if check is None:
-                    print (_('%s processed') % self.in_path)
+                    print((_('%s processed') % self.in_path))
                     break
         else:
             filenum = 0
@@ -102,11 +102,11 @@ class SplitHandHistory:
                     
     def new_file(self, fileno=-1):
         if fileno < 1:
-            print (_('Invalid file number') + ': %d)' % fileno)
+            print((_('Invalid file number') + ': %d)' % fileno))
             sys.exit(2)
         basename = os.path.splitext(os.path.basename(self.in_path))[0]
         name = os.path.join(self.out_path, basename+'-%06d.txt' % fileno)
-        print ('-> %s' % name)
+        print(('-> %s' % name))
         newfile = file(name, 'w')
         return newfile
         
@@ -123,7 +123,7 @@ class SplitHandHistory:
                 done = True
                 break
             except:
-                print _("Unexpected error processing file")
+                print(_("Unexpected error processing file"))
                 sys.exit(2)
             n += 1
         outfile.close()
@@ -139,7 +139,7 @@ class SplitHandHistory:
         else:
             def separator(line): return self.re_SplitHands.search(line)
         file_str = StringIO()
-        print file_str.getvalue()
+        print(file_str.getvalue())
         for line in file:
             if separator(line+addendum):
                 if file_str.getvalue():

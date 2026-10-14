@@ -22,7 +22,6 @@ import L10n
 _ = L10n.get_translation()
 
 import sys
-import exceptions
 
 from HandHistoryConverter import *
 from decimal_wrapper import Decimal
@@ -32,9 +31,9 @@ from decimal_wrapper import Decimal
 class Winamax(HandHistoryConverter):
     def Trace(f):
         def my_f(*args, **kwds):
-            print ( "entering " +  f.__name__)
+            print(( "entering " +  f.__name__))
             result= f(*args, **kwds)
-            print ( "exiting " +  f.__name__)
+            print(( "exiting " +  f.__name__))
             return result
         my_f.__name = f.__name__
         my_f.__doc__ = f.__doc__
@@ -47,10 +46,10 @@ class Winamax(HandHistoryConverter):
     siteId   = 15 # Needs to match id entry in Sites database
 
     mixes = { } # Legal mixed games
-    sym = {'USD': "\$", 'CAD': "\$", 'T$': "", "EUR": u"\xe2\x82\xac|\u20ac", "GBP": "\xa3", "play": ""}         # ADD Euro, Sterling, etc HERE
+    sym = {'USD': r"\$", 'CAD': r"\$", 'T$': "", "EUR": "\xe2\x82\xac|\u20ac", "GBP": "\xa3", "play": ""}         # ADD Euro, Sterling, etc HERE
     substitutions = {
                      'LEGAL_ISO' : "USD|EUR|GBP|CAD|FPP",     # legal ISO currency codes
-                            'LS' : u"\$|\xe2\x82\xac|\u20ac|" # legal currency symbols - Euro(cp1252, utf-8)
+                            'LS' : "\\$|\xe2\x82\xac|\u20ac|" # legal currency symbols - Euro(cp1252, utf-8)
                     }
 
     limits = { 'no limit':'nl', 'pot limit' : 'pl','LIMIT':'fl'}
@@ -69,7 +68,7 @@ class Winamax(HandHistoryConverter):
 
 # Winamax Poker - CashGame - HandId: #279823-223-1285031451 - Holdem no limit (0.02€/0.05€) - 2010/09/21 03:10:51 UTC
 # Table: 'Charenton-le-Pont' 9-max (real money) Seat #5 is the button
-    re_HandInfo = re.compile(u"""
+    re_HandInfo = re.compile(r"""
             \s*Winamax\sPoker\s-\s
             (?P<RING>CashGame)?
             (?P<TOUR>Tournament\s
@@ -99,7 +98,7 @@ class Winamax(HandHistoryConverter):
     re_Total        = re.compile(r"Total pot (?P<TOTAL>[\.\d]+).*(No rake|Rake (?P<RAKE>[\.\d]+))" % substitutions)
 
     # 2010/09/21 03:10:51 UTC
-    re_DateTime = re.compile("""
+    re_DateTime = re.compile(r"""
             (?P<Y>[0-9]{4})/
             (?P<M>[0-9]+)/
             (?P<D>[0-9]+)\s
@@ -110,8 +109,8 @@ class Winamax(HandHistoryConverter):
 # Seat 1: some_player (5€)
 # Seat 2: some_other_player21 (6.33€)
 
-    re_PlayerInfo        = re.compile(u'Seat\s(?P<SEAT>[0-9]+):\s(?P<PNAME>.*)\s\((%(LS)s)?(?P<CASH>[.0-9]+)(%(LS)s)?\)' % substitutions)
-    re_PlayerInfoSummary = re.compile(u'Seat\s(?P<SEAT>[0-9]+):\s(?P<PNAME>.+?)\s' % substitutions)
+    re_PlayerInfo        = re.compile(r'Seat\s(?P<SEAT>[0-9]+):\s(?P<PNAME>.*)\s\((%(LS)s)?(?P<CASH>[.0-9]+)(%(LS)s)?\)' % substitutions)
+    re_PlayerInfoSummary = re.compile(r'Seat\s(?P<SEAT>[0-9]+):\s(?P<PNAME>.+?)\s' % substitutions)
 
     def compilePlayerRegexs(self, hand):
         players = set([player[1] for player in hand.players])
@@ -125,20 +124,20 @@ class Winamax(HandHistoryConverter):
             #helander2222 posts blind ($0.25), lopllopl posts blind ($0.50).
             player_re = "(?P<PNAME>" + "|".join(map(re.escape, players)) + ")"
             subst = {'PLYR': player_re, 'CUR': self.sym[hand.gametype['currency']]}
-            self.re_PostSB    = re.compile('%(PLYR)s posts small blind (%(CUR)s)?(?P<SB>[\.0-9]+)(%(CUR)s)?' % subst, re.MULTILINE)
-            self.re_PostBB    = re.compile('%(PLYR)s posts big blind (%(CUR)s)?(?P<BB>[\.0-9]+)(%(CUR)s)?' % subst, re.MULTILINE)
+            self.re_PostSB    = re.compile(r'%(PLYR)s posts small blind (%(CUR)s)?(?P<SB>[\.0-9]+)(%(CUR)s)?' % subst, re.MULTILINE)
+            self.re_PostBB    = re.compile(r'%(PLYR)s posts big blind (%(CUR)s)?(?P<BB>[\.0-9]+)(%(CUR)s)?' % subst, re.MULTILINE)
             self.re_DenySB    = re.compile('(?P<PNAME>.*) deny SB' % subst, re.MULTILINE)
             self.re_Antes     = re.compile(r"^%(PLYR)s posts ante (%(CUR)s)?(?P<ANTE>[\.0-9]+)(%(CUR)s)?" % subst, re.MULTILINE)
             self.re_BringIn   = re.compile(r"^%(PLYR)s brings[- ]in( low|) for (%(CUR)s)?(?P<BRINGIN>[\.0-9]+(%(CUR)s)?)" % subst, re.MULTILINE)
-            self.re_PostBoth  = re.compile('(?P<PNAME>.*): posts small \& big blind \( (%(CUR)s)?(?P<SBBB>[\.0-9]+)(%(CUR)s)?\)' % subst)
-            self.re_PostDead  = re.compile('(?P<PNAME>.*) posts dead blind \((%(CUR)s)?(?P<DEAD>[\.0-9]+)(%(CUR)s)?\)' % subst, re.MULTILINE)
-            self.re_HeroCards = re.compile('Dealt\sto\s%(PLYR)s\s\[(?P<CARDS>.*)\]' % subst)
+            self.re_PostBoth  = re.compile(r'(?P<PNAME>.*): posts small \& big blind \( (%(CUR)s)?(?P<SBBB>[\.0-9]+)(%(CUR)s)?\)' % subst)
+            self.re_PostDead  = re.compile(r'(?P<PNAME>.*) posts dead blind \((%(CUR)s)?(?P<DEAD>[\.0-9]+)(%(CUR)s)?\)' % subst, re.MULTILINE)
+            self.re_HeroCards = re.compile(r'Dealt\sto\s%(PLYR)s\s\[(?P<CARDS>.*)\]' % subst)
 
-            self.re_Action = re.compile('(, )?(?P<PNAME>.*?)(?P<ATYPE> bets| checks| raises| calls| folds)( (%(CUR)s)?(?P<BET>[\d\.]+)(%(CUR)s)?)?( and is all-in)?' % subst)
-            self.re_ShowdownAction = re.compile('(?P<PNAME>[^\(\)\n]*) (\((small blind|big blind|button)\) )?shows \[(?P<CARDS>.+)\]')
+            self.re_Action = re.compile(r'(, )?(?P<PNAME>.*?)(?P<ATYPE> bets| checks| raises| calls| folds)( (%(CUR)s)?(?P<BET>[\d\.]+)(%(CUR)s)?)?( and is all-in)?' % subst)
+            self.re_ShowdownAction = re.compile('(?P<PNAME>[^\\(\\)\n]*) (\\((small blind|big blind|button)\\) )?shows \\[(?P<CARDS>.+)\\]')
 
-            self.re_CollectPot = re.compile('\s*(?P<PNAME>.*)\scollected\s(%(CUR)s)?(?P<POT>[\.\d]+)(%(CUR)s)?.*' % subst)
-            self.re_ShownCards = re.compile("^Seat (?P<SEAT>[0-9]+): %(PLYR)s showed \[(?P<CARDS>.*)\].*" % subst, re.MULTILINE)
+            self.re_CollectPot = re.compile(r'\s*(?P<PNAME>.*)\scollected\s(%(CUR)s)?(?P<POT>[\.\d]+)(%(CUR)s)?.*' % subst)
+            self.re_ShownCards = re.compile(r"^Seat (?P<SEAT>[0-9]+): %(PLYR)s showed \[(?P<CARDS>.*)\].*" % subst, re.MULTILINE)
 
     def readSupportedGames(self):
         return [
@@ -232,8 +231,8 @@ class Winamax(HandHistoryConverter):
                 if hand.gametype['type'] == 'tour':
                     hand.tablename = info['TABLENO']
                 # TODO: long-term solution for table naming on Winamax.
-                if hand.tablename.endswith(u'No Limit Hold\'em'):
-                    hand.tablename = hand.tablename[:-len(u'No Limit Hold\'em')] + u'NLHE'
+                if hand.tablename.endswith('No Limit Hold\'em'):
+                    hand.tablename = hand.tablename[:-len('No Limit Hold\'em')] + 'NLHE'
             if key == 'MAXPLAYER' and info[key] != None:
                 hand.maxseats = int(info[key])
 
@@ -244,7 +243,7 @@ class Winamax(HandHistoryConverter):
                     #print "DEBUG: info['BIRAKE']: %s" % info['BIRAKE']
                     #print "DEBUG: info['BOUNTY']: %s" % info['BOUNTY']
                     for k in ['BIAMT','BIRAKE']:
-                        if k in info.keys() and info[k]:
+                        if k in list(info.keys()) and info[k]:
                             info[k] = info[k].replace(',','.')
 
                     if info[key] in ('Gratuit', 'Freeroll', 'Ticket uniquement', 'Ticket only', 'Ticket'):
@@ -254,7 +253,7 @@ class Winamax(HandHistoryConverter):
                     else:
                         if info[key].find("$")!=-1:
                             hand.buyinCurrency="USD"
-                        elif info[key].find(u"€")!=-1:
+                        elif info[key].find("€")!=-1:
                             hand.buyinCurrency="EUR"
                         elif info[key].find("FPP")!=-1:
                             hand.buyinCurrency="WIFP"
@@ -266,7 +265,7 @@ class Winamax(HandHistoryConverter):
                             hand.buyinCurrency="play"
 
                         if info['BIAMT'] is not None:
-                            info['BIAMT'] = info['BIAMT'].strip(u'$€FPP')
+                            info['BIAMT'] = info['BIAMT'].strip('$€FPP')
                         else:
                             info['BIAMT'] = 0
 
@@ -276,13 +275,13 @@ class Winamax(HandHistoryConverter):
                                 tmp = info['BOUNTY']
                                 info['BOUNTY'] = info['BIRAKE']
                                 info['BIRAKE'] = tmp
-                                info['BOUNTY'] = info['BOUNTY'].strip(u'$€') # Strip here where it isn't 'None'
+                                info['BOUNTY'] = info['BOUNTY'].strip('$€') # Strip here where it isn't 'None'
                                 hand.koBounty = int(100*Decimal(info['BOUNTY']))
                                 hand.isKO = True
                             else:
                                 hand.isKO = False
 
-                            info['BIRAKE'] = info['BIRAKE'].strip(u'$€')
+                            info['BIRAKE'] = info['BIRAKE'].strip('$€')
 
                             # TODO: Is this correct? Old code tried to
                             # conditionally multiply by 100, but we
@@ -373,12 +372,12 @@ class Winamax(HandHistoryConverter):
             try:
                 m = self.re_PostSB.search(hand.handText)
                 hand.addBlind(m.group('PNAME'), 'small blind', m.group('SB'))
-            except exceptions.AttributeError: # no small blind
+            except AttributeError: # no small blind
                 log.warning( _("No small blinds found.")+str(sys.exc_info()) )
             #hand.addBlind(None, None, None)
         for a in self.re_PostBB.finditer(hand.handText):
             hand.addBlind(a.group('PNAME'), 'big blind', a.group('BB'))
-            amount = Decimal(a.group('BB').replace(u',', u''))
+            amount = Decimal(a.group('BB').replace(',', ''))
             hand.lastBet['PREFLOP'] = amount
         for a in self.re_PostDead.finditer(hand.handText):
             #print "DEBUG: Found dead blind: addBlind(%s, 'secondsb', %s)" %(a.group('PNAME'), a.group('DEAD'))
@@ -403,7 +402,7 @@ class Winamax(HandHistoryConverter):
         # streets PREFLOP, PREDRAW, and THIRD are special cases beacause
         # we need to grab hero's cards
         for street in ('PREFLOP', 'DEAL', 'BLINDSANTES'):
-            if street in hand.streets.keys():
+            if street in list(hand.streets.keys()):
                 m = self.re_HeroCards.finditer(hand.streets[street])
             if m == []:
                 log.debug(_("No hole cards found for %s") % street)
@@ -458,7 +457,7 @@ class Winamax(HandHistoryConverter):
         total = sum(hand.pot.committed.values()) + sum(hand.pot.common.values())
 
         # Return any uncalled bet.
-        committed = sorted([ (v,k) for (k,v) in hand.pot.committed.items()])
+        committed = sorted([ (v,k) for (k,v) in list(hand.pot.committed.items())])
         #print "DEBUG: committed: %s" % committed
         returned = {}
         lastbet = committed[-1][0] - committed[-2][0]
@@ -489,8 +488,11 @@ class Winamax(HandHistoryConverter):
             hand.addCollectPot(player=plyr,pot=p)
         else:
             for plyr, p in collectees:
-                if plyr in returned.keys():
-                    p = Decimal(p) - returned[plyr]
+                # collectees can hold either raw regex strings or Decimals, and
+                # Python 3 cannot order one against the other.
+                p = Decimal(str(p))
+                if plyr in list(returned.keys()):
+                    p = p - returned[plyr]
                 if p > 0:
                     #print "DEBUG: addCollectPot(%s,%s)" %(plyr, p)
                     hand.addCollectPot(player=plyr,pot=p)
@@ -544,7 +546,7 @@ class Winamax(HandHistoryConverter):
         log.info("Winamax.getTableTitleRe: table_name='%s' tournament='%s' table_number='%s'" % (table_name, tournament, table_number))
         regex = "%s /" % (table_name)
         if tournament:
-            regex = "\(%s\)#(%s|%03d)" % (tournament, table_number,int(table_number))
+            regex = r"\(%s\)#(%s|%03d)" % (tournament, table_number,int(table_number))
         log.info("Winamax.getTableTitleRe: returns: '%s'" % (regex))
         return regex
 

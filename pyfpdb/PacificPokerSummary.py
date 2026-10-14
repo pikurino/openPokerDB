@@ -48,11 +48,11 @@ class PacificPokerSummary(TourneySummary):
 
     substitutions = {
                      'LEGAL_ISO' : "USD|EUR|GBP|CAD|FPP",      # legal ISO currency codes
-                            'LS' : u"\$|\xe2\x82\xac|\u20AC|", # legal currency symbols
-                           'NUM' : u".,\d\xa0"                     # legal characters in number format
+                            'LS' : "\\$|\xe2\x82\xac|\u20AC|", # legal currency symbols
+                           'NUM' : ".,\\d\xa0"                     # legal characters in number format
                     }
     
-    re_TourneyInfo = re.compile(u"""
+    re_TourneyInfo = re.compile(r"""
                         Tournament\sID:\s(?P<TOURNO>[0-9]+)\s+
                         Buy-In:\s(?P<BUYIN>(((?P<BIAMT>(?P<CURRENCY1>%(LS)s)?[%(NUM)s]+\s?(?P<CURRENCY2>%(LS)s)?)(\s\+\s?(?P<BIRAKE>(%(LS)s)?[%(NUM)s]+\s?(%(LS)s)?))?)|(Free)|(.+?)))\s+
                         (Rebuy:\s[%(LS)s](?P<REBUYAMT>[%(NUM)s]+)\s?(%(LS)s)?\s+)?
@@ -62,7 +62,7 @@ class PacificPokerSummary(TourneySummary):
                         ^(?P<PNAME>.+?)\sfinished\s(?P<RANK>[0-9]+)\/(?P<ENTRIES>[0-9]+)(\sand\swon\s(?P<WCURRENCY>[%(LS)s])?(?P<WINNINGS>[%(NUM)s]+)\s?(?P<WCURRENCY2>[%(LS)s])?)?
                                """ % substitutions ,re.VERBOSE|re.MULTILINE|re.DOTALL)
     
-    re_Category = re.compile(u"""
+    re_Category = re.compile(r"""
           (?P<LIMIT>No\sLimit|Fix\sLimit|Pot\sLimit)\s
           (?P<GAME>Holdem|Omaha|OmahaHL|Hold\'em|Omaha\sHi/Lo|OmahaHL|Razz|RAZZ|7\sCard\sStud|7\sCard\sStud\sHi/Lo|Badugi|Triple\sDraw\s2\-7\sLowball|Single\sDraw\s2\-7\sLowball|5\sCard\sDraw)
                                """ % substitutions ,re.VERBOSE|re.MULTILINE|re.DOTALL)
@@ -71,7 +71,7 @@ class PacificPokerSummary(TourneySummary):
 
     @staticmethod
     def getSplitRe(self, head):
-        re_SplitTourneys = re.compile(u'\*\*\*\*\* Cassava Tournament Summary \*\*\*\*\*')
+        re_SplitTourneys = re.compile(r'\*\*\*\*\* Cassava Tournament Summary \*\*\*\*\*')
         return re_SplitTourneys
 
     def parseSummary(self):
@@ -129,7 +129,7 @@ class PacificPokerSummary(TourneySummary):
             
         if currency:
             if currency == "$":     self.buyinCurrency="USD"
-            elif currency == u"€":  self.buyinCurrency="EUR"
+            elif currency == "€":  self.buyinCurrency="EUR"
         elif self.buyin == 0:
             self.buyinCurrency="FREE"
         else:
@@ -147,10 +147,10 @@ class PacificPokerSummary(TourneySummary):
             winnings = int(100*convert_to_decimal(mg['WINNINGS']))
             if mg.get('WCURRENCY'):
                 if mg['WCURRENCY'] == "$":     self.currency="USD"
-                elif mg['WCURRENCY'] == u"€":  self.currency="EUR"
+                elif mg['WCURRENCY'] == "€":  self.currency="EUR"
             elif mg.get('WCURRENCY2'):
                 if mg['WCURRENCY2'] == "$":     self.currency="USD"
-                elif mg['WCURRENCY2'] == u"€":  self.currency="EUR"
+                elif mg['WCURRENCY2'] == "€":  self.currency="EUR"
         if 'PREBUYS' in mg and mg['PREBUYS'] != None:
             rebuyCount = int(mg['PREBUYS'])
         if 'PADDONS' in mg and mg['PADDONS'] != None:
@@ -159,9 +159,9 @@ class PacificPokerSummary(TourneySummary):
         self.addPlayer(rank, player, winnings, self.currency, rebuyCount, addOnCount, koCount)
 
 def convert_to_decimal(string):
-    dec = string.strip(u'€&euro;\u20ac$ ')
-    dec = dec.replace(u',','.')
-    dec = dec.replace(u' ','')
+    dec = string.strip('€&euro;\u20ac$ ')
+    dec = dec.replace(',','.')
+    dec = dec.replace(' ','')
     dec = Decimal(dec)
     return dec
 
