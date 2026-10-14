@@ -1,7 +1,8 @@
 # OpenPokerDB — Revival Design Document
 
-Status: **living document, written 2026-10-12.** Sections are marked `[DONE]`, `[IN PROGRESS]`, or
-`[PLANNED]`. Anything not verified by running code is labelled as a plan, not as fact.
+Status: **living document, written 2026-10-12, last updated 2026-10-14.** Sections are marked
+`[DONE]`, `[IN PROGRESS]`, or `[PLANNED]`. Anything not verified by running code is labelled as a
+plan, not as fact.
 
 This doc exists so that a future reader (human or a cheaper model) can debug and extend this
 project from the doc alone, without spelunking 50k lines of 2012-era Python. Every number here was
@@ -36,8 +37,12 @@ this project is called.
 | Existing design docs | none upstream; `readme.txt` is now this fork's, and points here |
 | Version in `setup.py` / `Makefile` | 0.27 / 0.30 (inconsistent) |
 
-**Revival goals (agreed 2026-10-12):** drop Linux/macOS, document the design, import GGPoker Rush &
-Cash hands into the database, and replace the GUI.
+**Revival goals (agreed 2026-10-12, extended 2026-10-14):** drop Linux/macOS, document the design,
+import GGPoker Rush & Cash hands into the database, import GGPoker **tournaments** (histories *and*
+summary files), and replace the GUI with a Holdem-Manager-2-shaped reporting window -- cash and
+tournament reports, editable stat columns, date/stake/player filters, click-a-stake hand history with
+card miniatures, a results graph including all-in EV, and database maintenance. A live table overlay
+stays out of scope until that is solid (§1 decision 2).
 
 **Locked decisions:**
 
@@ -570,11 +575,13 @@ the Windows console default (cp1252) raised `UnicodeEncodeError` *inside* `loggi
 
 ---
 
-## 7. GUI (PySide6) `[SCREENS 1-3 BUILT 2026-10-13; 4-5 PLANNED]`
+## 7. GUI (PySide6) `[SCREENS 1-5 BUILT; tournament mode BUILT 2026-10-14]`
 
-One module, `pyfpdb/HudReplayer.py`, replaces `fpdb.pyw` + the 18 `Gui*` modules for the near-term
-product. It runs the real pipeline (`Importer` → `GGPokerToFpdb` → `DerivedStats` → `Database`) on a
-`QThread`; nothing in the window parses a hand history itself.
+One entry point, `pyfpdb/HudMain.py`, owns the five screens; `pyfpdb/HudReplayer.py` +
+`pyfpdb/HudTable.py` own the felt. The old `fpdb.pyw` and the 18 `Gui*` modules are unreferenced by
+anything the window calls. It runs the real pipeline (`Importer` → `GGPokerToFpdb` /
+`GGPokerSummary` → `DerivedStats` → `Database`) on a `QThread`, and reports come from
+`pyfpdb/StatsEngine.py`; nothing in the window parses a hand history itself.
 
 **Database separation.** The app writes to `%APPDATA%\fpdb\database\fpdb.db3`; §6's regression
 harness recreates a database named `fpdb` in the same folder. Keeping them apart is what lets the
@@ -583,6 +590,19 @@ the 10 files under `Documents/Projects/Poker/history/games`: **345 stored, 0 par
 345 `Hands`, 2070 `HandsPlayers`, 3789 `HandsActions`, 4 `Boards` (§3.7), 452 rows with known cards
 (§3.4), 167 Hold'em + 178 Omaha Hi. Re-running the same folder reports
 `0 stored, 345 duplicate, 0 partial, 0 errors` — the toolbar shows the `runImport()` totals.
+
+**Running it, and why the title bar carries a path.** `python HudMain.py [--db <sqlite file>]`; with
+no `--db` it resolves the same way the importer does (`Configuration.Config()` →
+`dir_database` + `db-databaseName`), which is `%APPDATA%\fpdb\database\fpdb.db3`. The `--db` flag
+exists because tournament work is done against a *copy* of a database, never the live corpus: a
+sandbox that holds the MTT import lets the tournament screens be driven by hand, and it is the only
+way to try purge or EV-column writes without risking play data. Both of those files are named
+`fpdb.db3`, so the window title prints the whole path — a title of "OpenPokerDB" plus two identical
+databases is how a screenshot ends up describing the wrong file.
+
+A shortcut on the Desktop ("Poker HUD") opens the live database on double-click; it points at
+`pythonw.exe`, not a console, so no terminal appears behind the window. The Start-menu entry and any
+signed-hosted packaging are still open (Smart App Control blocks a locally built unsigned `.exe`).
 
 **Screen 1 — import.** "Import hand histories..." picks a folder and runs the thread. The per-file
 error counts the original plan asked for are *not* available: `Files.file` stores only the file's
@@ -712,10 +732,27 @@ with a recorded finish exist, 22 tournament checks (every row's place % and hand
 SQL, and the grid's net against `sum(winnings - ticket)`). On a cash-only database the tournament
 pass reports "no finished tournaments, skipped" instead of passing vacuously.
 
-**Still planned.** A versus-player report (one player's stats split by which villain they were in a
-hand with), and a delivered launcher: a named, double-clickable Desktop + Start-menu entry, not "run this script from a
-path". Locally compiled unsigned `.exe` files are blocked on this machine by Smart App Control, so
-the launcher hosts the app behind a signed process instead of shipping a self-built binary.
+**Next, and the decision each one carries.**
+
+- *Player and versus-player reports* (the brief's b and c). Mechanically these are one more
+  `StatsEngine` grouping over `HandsActions`, but they are blocked on §3.2: GG aliases change between
+  sessions, so a per-villain stat line is only honest while the alias holds. Ship it as
+  alias-scoped-with-a-visible-date-range, not as a lifetime profile, until identity is solved.
+- *A committed privacy guard* (`TestGgPrivacy.py`): scan tracked files for real-shaped GG
+  identifiers -- hand ids, 8-hex aliases, clocks, tournament numbers -- and fail. It must derive its
+  denylist by reading the local corpus when the corpus is present and skip with a note when it is
+  not, so the check itself never carries the values it is looking for.
+- *PT3 stat parity*: the brief asks for at least PokerTracker 3's statistical reference. That needs a
+  checked list (`docs/pt3-stat-parity.md`) of stat -> definition -> implemented/missing, because
+  "VPIP" and "PFR" have site-specific fine-print (untouched raises, straddles, a limp-raise being no
+  PFR) that only shows up once the number is compared against a hand-by-hand reading.
+- *Default columns*: decide whether `ev`/`evbb100` belong in the report's default set. They exist and
+  graph fine, but they are NULL until Database -> All-in EV has written them, so a default column that
+  is empty by default teaches the user to distrust the grid.
+- *Tournament trend*: the cash graph is bb/100, which a tournament cannot have (the blinds change
+  every level), so tour mode needs its own line -- net in tickets or in chips against an event index,
+  plus ITM% over time. The button is disabled today rather than drawing a wrong line.
+- *By day / by session grouping*: needs §8's timezone decision before the buckets mean anything.
 
 ---
 
@@ -740,3 +777,11 @@ the launcher hosts the app behind a signed process instead of shipping a self-bu
   than dropping them.
 - **Dead upstream.** No issue tracker, no CI, no releases since 2012. Everything we assert must be
   reproducible locally.
+- **Published history cannot be unpublished.** Hand histories, tournament histories, summaries and
+  databases are excluded by `.gitignore`, and §6 is the sweep that keeps them out of docs, fixtures
+  and tests. What that cannot undo is a value that already reached a commit on `origin`: one early
+  acceptance paragraph quoted the real session's clock range in `DESIGN.md`. The tip no longer does,
+  but the pre-revival commit still carries it, and a force-push is a claim about the remote, not a
+  proof of erasure -- mirrors, the GitHub event API and any cloned fork keep the old object. Treat it
+  as a low-severity detail (a clock range with no table, seat or card) that only a decision about the
+  repo's public status can close.
