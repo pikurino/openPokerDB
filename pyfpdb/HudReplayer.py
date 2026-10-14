@@ -820,6 +820,24 @@ class MainWindow(QtWidgets.QMainWindow):
             self.replay.set_hand(items[0].data(QtCore.Qt.UserRole))
 
 
+class ReplayWindow(QtWidgets.QMainWindow):
+    """A single hand in its own window, for the report grid's double-click.
+
+    HudMain embeds no table of its own; it opens this so the one frame-per-action replayer stays in
+    exactly one place. `player` is only used to title the window -- the table already highlights the
+    hero by seat, and a report row can be any player, not just Hero.
+    """
+
+    def __init__(self, db_path, hand_id, player=None):
+        QtWidgets.QMainWindow.__init__(self)
+        self.setWindowTitle("Hand %s%s" % ("#RC%s" % hand_id if str(hand_id).isdigit() else hand_id,
+                                           "  --  %s" % player if player else ""))
+        self.resize(1100, 760)
+        self.widget = ReplayWidget(db_path, recalled_history_folder())
+        self.setCentralWidget(self.widget)
+        self.widget.set_hand(hand_id)
+
+
 def main(argv=None):
     if argv is None:
         argv = sys.argv[1:]

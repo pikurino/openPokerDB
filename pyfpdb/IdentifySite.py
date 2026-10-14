@@ -134,13 +134,19 @@ class IdentifySite:
         re_identify['BetOnline']    = re.compile(r'(BetOnline\sPoker|PayNoRake|ActionPoker\.com|Gear\sPoker)\sGame\s\#\d+')
         re_identify['PokerTracker'] = re.compile(r'(EverestPoker\sGame\s\#|GAME\s\#|MERGE_GAME\s\#|\*{2}\sGame\sID\s)\d+')
         re_identify['Microgaming']  = re.compile('<Game\\s(hhversion="\\d"\\s)?id=\"\\d+\"\\sdate=\"[\\d\\-\\s:]+\"\\sunicodetablename')
-        # Doc §3 line 1: 'Poker Hand #RC<digits>:' is unique to GGPoker Rush & Cash.
-        re_identify['GGPoker']      = re.compile(r'^Poker Hand \#RC\d+:', re.MULTILINE)
+        # Doc §3 line 1: 'Poker Hand #RC<digits>:' is GGPoker Rush & Cash, '#TM<digits>:' is GGPoker
+        # tournaments. The two products share every downstream pattern but their first line.
+        re_identify['GGPoker']      = re.compile(r'^Poker Hand \#(?:RC|TM)\d+:', re.MULTILINE)
         re_identify['FullTiltPokerSummary'] = re.compile(r'Full\sTilt\sPoker\.fr\sTournament|Full\sTilt\sPoker\sTournament\sSummary')
         re_identify['PokerStarsSummary']    = re.compile(r'PokerStars\sTournament\s\#\d+')
         re_identify['PacificPokerSummary']  = re.compile(r'\*{5}\sCassava Tournament Summary\s\*{5}')
         re_identify['MergeSummary']         = re.compile(r"<meta\sname='Creator'\scontent='support@carbonpoker.ag'\s/>")
         re_identify['WinamaxSummary']       = re.compile(r"Winamax\sPoker\s\-\sTournament\ssummary")
+        # GG's per-tournament summary: line 1 is 'Tournament #<no>, <name>, Hold'em No Limit'.
+        # Nothing else in the corpus starts a file that way, and its hand histories do not contain
+        # it, so hh and summary stay unambiguous.
+        re_identify['GGPokerSummary'] = re.compile(r"^Tournament \#\d+, .+, (Hold'em|Omaha) (No|Pot) Limit$",
+                                                   re.MULTILINE)
         re_identify['PokerTrackerSummary']  = re.compile("PokerTracker")
         return re_identify
 

@@ -479,6 +479,18 @@ the Windows console default (cp1252) raised `UnicodeEncodeError` *inside* `loggi
   can then leak a hand. The same applies to new fixtures: **never commit a hand history**, and
   never add one to a commit that has already been pushed without rewriting that commit — a
   follow-up delete leaves the blob reachable from the old commit.
+- **The GG *tournament* fixtures that are committed are synthetic, and they are the only GG files in
+  git.** `regression-test-files/summaries/GGPoker/` holds three invented 8-line summaries (tournament
+  numbers `900000011`-`900000013`, `Synthetic ...` names, invented fields/prize pools/ranks/winnings)
+  that reproduce the measured shape, not the measured data. The same convention applies to prose and
+  docstrings: `docs/gg-hand-history-format.md` §11–§12, `GGPokerSummary.py` and `GGPokerToFpdb.py`
+  quote hand ids `#RC900000001`/`#TM900000011`, aliases from the `a1b2c3d4` family and clocks from
+  `2026/10/04`, and a real tournament's entries, prize pool, place or winnings appears nowhere --
+  those figures alone identify a finish to anyone who can look at a leaderboard. Before any commit
+  that touches GG docs, tests or fixtures, re-run the identifier sweep (real tourney numbers, real
+  `#TM/#RC` ids, real 8-hex aliases, real `YYYY/MM/DD HH:MM:SS` clocks, and every number copied out
+  of a real summary) over `git diff --name-only` plus `git ls-files -o`, remembering that the console
+  renders the solidus in a GG clock as a dash.
 - **Coverage is thinner than the file count suggests:** the tracked sidecars holding expected values
   are `.gt` **30**, `.hands` **39**, `.hp` **58** (each GG fixture adds one of every kind, so a
   local corpus of 14 hands lifts all three by 14), and they sit on only **60** distinct fixtures out
@@ -541,7 +553,7 @@ the Windows console default (cp1252) raised `UnicodeEncodeError` *inside* `loggi
   whole corpus, then fix the test and record the finding here.
 - GG acceptance numbers. `TestHandsPlayers.py -s GGPoker` → **Total Errors: 0**; `TestGgImport.py` →
   **0 FAILURES**, exit 0. Measured ground truth, raw text and database agreeing:
-  hands **345** (all distinct `siteHandNo`, `2026-10-09 10:28:41`..`13:24:24`), `FpdbParseError`
+  hands **345** (all distinct `siteHandNo`, all on one date, inside a 3-hour window), `FpdbParseError`
   **0**, logical `tableName`s **2** (`RushAndCash-holdem-nl-0.01/0.02` 167,
   `RushAndCash-omahahi-pl-0.01/0.02` 178) from **345** raw `RushAndCash<id>` table ids, `rush = 1`
   on **345**, `comment` non-null on **345** (longest 194 chars), aliases **1103** + `Hero` =
@@ -668,8 +680,40 @@ measured from it is fiction.
   renderings of the same frame number by number: every felt figure must lose its `$`, and
   `bb_value * Gametypes.bigBlind` must still equal the cents the dollars said.
 
-**Still planned.** Screen 4 (player stats from `DerivedStats`) and screen 5 (EV graph), plus a
-delivered launcher: a named, double-clickable Desktop + Start-menu entry, not "run this script from a
+**Screen 4 — the HM2-style report grid** (`pyfpdb/HudMain.py` + `pyfpdb/StatsEngine.py`) and
+**Screen 5 — the results graph** are built, and the Database menu carries the maintenance operations
+(import, backup, load/restore, purge, all-in EV, VACUUM, integrity check, CSV export).
+
+Cash and tournament mode share the grid widget but nothing else, and that split is load-bearing:
+
+- `StatsEngine.Filters` now defaults to **cash-only** (`h.tourneyId is null`). Without it a combined
+  database invents stakes: a tourney `Gametypes` row holds the level's chip blinds, so 30000/60000
+  chips rendered as `$300.00/$600.00 NL Hold'em` and the cash By-Stakes tab grew 32 phantom high-stakes
+  rows over the same 345 real hands. Measured before/after on a combined copy: 34 rows → 2.
+- The stakes filter box lists ring gametypes only, for the same reason.
+- A tournament row's money is the real cents the summary stored (`TourneyTypes.buyin/fee/koBounty`,
+  `Tourneys.prizepool`, `TourneysPlayers.winnings`), never `HandsPlayers.totalProfit`, which is
+  **chips** in a tour hand (measured: Hero's seats sum to -1,000,000 in a $2 Daily Classic). The hand
+  list under a tournament row therefore relabels its money column `Result (chips)` and prints the
+  chip count; the same column reads `Result ($)` in cash mode.
+- Buy-in is the whole ticket: `buyin + fee + koBounty` (measured: the $2.50 Bounty Hunters row stores
+  130 + 20 + 100 = 250 cents), so `Net = winnings - ticket` is what he actually paid.
+- Prize Pool / Buy-In / Winnings are amounts, not wins, so they are deliberately **not** coloured by
+  sign; only Net is. A green $100,000.00 prize pool would read as $100,000 won.
+- Clicking a tournament row lists that event's hands below it (`Filters.tourney_id`), which is the
+  same click-to-drill-down path the cash stakes rows use.
+- Purge protects tournament hands behind a tick box, because the event's result lives in
+  `Tourneys`/`TourneysPlayers` and deleting only its hands would leave a grid row with no history.
+- The bb graph is cash-only (a tournament's blinds change every level), so the Graph button is
+  disabled in tournament mode rather than drawing a meaningless line.
+
+`StatsEngine.py` run against a database prints both reconciliations: 17 cash checks and, when events
+with a recorded finish exist, 22 tournament checks (every row's place % and hand count against raw
+SQL, and the grid's net against `sum(winnings - ticket)`). On a cash-only database the tournament
+pass reports "no finished tournaments, skipped" instead of passing vacuously.
+
+**Still planned.** A versus-player report (one player's stats split by which villain they were in a
+hand with), and a delivered launcher: a named, double-clickable Desktop + Start-menu entry, not "run this script from a
 path". Locally compiled unsigned `.exe` files are blocked on this machine by Smart App Control, so
 the launcher hosts the app behind a signed process instead of shipping a self-built binary.
 
@@ -685,7 +729,14 @@ the launcher hosts the app behind a signed process instead of shipping a self-bu
   before bucketing sessions by day. `[PARTIALLY RESOLVED]`
 - **Identity.** §3.2 is the biggest product risk: a HUD whose opponent stats reset every session is
   of limited use. Decide early whether that is acceptable.
-- **Heads-up and tournaments** appear in the old regression corpus but not in the GG corpus; the GG
-  importer should fail loudly on formats we have no samples for rather than parse them wrongly.
+- **Heads-up** appears in the old regression corpus but not in the GG corpus; the GG importer fails
+  loudly on formats we have no samples for rather than parse them wrongly. **Tournaments are no
+  longer one of those** — the GG MTT format is now ported and imported (doc §11–§12): 413 hands
+  stored across the 5 priced events. The 5 freeroll "gimmick" tables (Flipout / Cash Drop) hold 7
+  hands between them (2+1+1+2+1, counted from the file headers) and **all 7 refuse**: an ante can
+  exceed the caller's stack there and `Pot.end()` only returns an uncalled overhang from
+  `pot.committed`, while `addAnte` parks antes in `pot.common`. Their *results* import (the summary
+  writes rank and prize), so the tournament grid shows those events with a place and 0 hands rather
+  than dropping them.
 - **Dead upstream.** No issue tracker, no CI, no releases since 2012. Everything we assert must be
   reproducible locally.

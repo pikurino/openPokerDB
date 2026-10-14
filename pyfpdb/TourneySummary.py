@@ -52,7 +52,10 @@ class TourneySummary(object):
     SITEIDS = {'Fulltilt':1, 'Full Tilt Poker':1, 'PokerStars':2, 'Everleaf':3, 'Boss':4, 'OnGame':5,
                'UltimateBet':6, 'Betfair':7, 'Absolute':8, 'PartyPoker':9, 'PacificPoker':10,
                'Partouche':11, 'Merge':12, 'PKR':13, 'iPoker':14, 'Winamax':15,
-               'Everest':16, 'Cake':17, 'Entraction':18, 'BetOnline':19, 'Microgaming':20 }
+               'Everest':16, 'Cake':17, 'Entraction':18, 'BetOnline':19, 'Microgaming':20,
+               # Must match the seeded Sites row (Database.py:1524); without it a summary would be
+               # stored under siteId NULL and never match the tourneys its own hands already created.
+               'GGPoker':21 }
 
 
     def __init__(self, db, config, siteName, summaryText, in_path = '-', builtFrom = "HHC"):

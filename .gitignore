@@ -10,6 +10,12 @@ __pycache__/
 fpdb-log.txt
 
 # Hand histories are private play data and are never committed. The GGPoker
-# fixtures and the corpus they were built from live on disk only; see
-# DESIGN.md section 6.
+# fixtures and the corpus they were built from live on disk only; see DESIGN.md
+# section 6. The three GGPoker *summary* fixtures that are committed are synthetic
+# (numbers 900000011-900000013) -- everything else dropped in that folder stays out.
 /pyfpdb/regression-test-files/cash/GGPoker/
+/pyfpdb/regression-test-files/tour/GGPoker/
+/pyfpdb/regression-test-files/summaries/GGPoker/*
+!/pyfpdb/regression-test-files/summaries/GGPoker/NLHE-USD-MTT-900000011.txt
+!/pyfpdb/regression-test-files/summaries/GGPoker/NLHE-USD-KO-900000012.txt
+!/pyfpdb/regression-test-files/summaries/GGPoker/NLHE-FREE-MTT-900000013.txt

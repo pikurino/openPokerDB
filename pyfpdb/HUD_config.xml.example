@@ -1601,7 +1601,7 @@
         <hhc site="Cake" converter="CakeToFpdb"/>
         <hhc site="Entraction" converter="EntractionToFpdb"/>
         <hhc site="BetOnline" converter="BetOnlineToFpdb"/>
-        <hhc site="GGPoker" converter="GGPokerToFpdb"/>
+        <hhc site="GGPoker" converter="GGPokerToFpdb" summaryImporter="GGPokerSummary"/>
     </hhcs>
 
 

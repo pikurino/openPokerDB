@@ -80,7 +80,7 @@ this corpus (largest amount anywhere: `$29.96`).
 
 | Count | Line shape | Notes |
 |---|---|---|
-| 345 | `Poker Hand #RC900000001: Omaha Pot Limit ($0.01/$0.02) - 2026/01/15 10:42:55` | hand id is `RC` + digits. `<GAME>` ∈ {`Hold'em No Limit` (167), `Omaha Pot Limit` (178)}. **The timestamp is `YYYY/MM/DD HH:MM:SS` — solidus separators, plain space before the time** (confirmed by an ord dump of the bytes: `0x2f`). A regex written as `\d{4}-\d{2}-\d{2}` matches nothing in this corpus. |
+| 345 | `Poker Hand #RC900000001: Omaha Pot Limit ($0.01/$0.02) - 2026/10/04 12:00:00` | hand id is `RC` + digits. `<GAME>` ∈ {`Hold'em No Limit` (167), `Omaha Pot Limit` (178)}. **The timestamp is `YYYY/MM/DD HH:MM:SS` — solidus separators, plain space before the time** (confirmed by an ord dump of the bytes: `0x2f`). A regex written as `\d{4}-\d{2}-\d{2}` matches nothing in this corpus. |
 | 345 | `Table 'RushAndCash1000002' 6-max Seat #1 is the button` | `Seat #<n>` is 1-based; always `6-max` here |
 | 1725 + 345 | `Seat 2: a1b2c3d4 ($5.38 in chips)` / `Seat 1: Hero ($2 in chips)` | 6 per hand, 2070 total |
 | 4 | `Cash Drop to Pot : total $0.2` | spaces around `:` **and a trailing space**. Sits after the seat lines, before the blinds. Promotional money that is in the pot but was contributed by no player. |
@@ -245,12 +245,14 @@ cannot see this: it deletes `boards` before comparing (§DESIGN.md 6).
 
 ## 9. Absent from the corpus — fail loudly, do not guess
 
-Raise (do not silently mis-import) on: heads-up (`1-max`) Rush & Cash, tournaments
-(`Poker Hand #... Tournament ...`, buy-in/fee lines), ante games, `All-In or Fold` brings-in, mixed
-games (PLO5, Big Open, Crazy House), non-`$` currencies, `Mucked` (**UNSEEN** anywhere here),
+Raise (do not silently mis-import) on: heads-up (`1-max`) Rush & Cash, `All-In or Fold` brings-in,
+mixed games (PLO5, Big Open, Crazy House), non-`$` currencies, `Mucked` (**UNSEEN** anywhere here),
 `Side pot` lines, more than one board bracket per street beyond the two-bracket shape, or a
 `Dealt to <non-Hero> [cards]` line — that last one would mean §6's "only Hero is dealt" is no longer
 true, i.e. the format changed and needs a new test, not a silent parse.
+
+Tournaments and antes *were* on this list until 2026-10-14; they are specified in §11 now. The one
+thing that remains unparsable is the all-in-ante freeroll shape at the end of §11.
 
 ## 10. Mapping to fpdb `[IMPLEMENTED in pyfpdb/GGPokerToFpdb.py, 2026-10-13]`
 
@@ -272,3 +274,82 @@ table and intuition disagree: seats and the button position stay **1-based** (th
 | 15 | `readCollectPot` → one `hand.addCollectPot` per line, in file order (main pot first) |
 | 16 | `getRake` → `hand.rake = Rake+Jackpot+Bingo+Fortune+Tax`, asserting §5 and `Total pot == hand.totalpot` before accepting the hand; components kept in `hand.comment` |
 | 17–19 | `readShownCards` (summary `showed` lines carry the hand rank), `readOther` (per-player summary-vs-body money cross-check, noted not raised), `readRunItTwice` → `hand.board['FLOP1'..'RIVER2']` + `hand.runItTimes = 2`, which is what `DerivedStats.py:177` reads |
+
+## 11. Tournament hands `[IMPLEMENTED in pyfpdb/GGPokerToFpdb.py, 2026-10-14]`
+
+Every identifier, alias, clock and finish figure in §11–§12 is the committed synthetic
+fixture under `pyfpdb/regression-test-files/summaries/GGPoker/`; nothing from the real corpus
+is ever quoted here.
+
+Measured on 10 hand files (420 hands) of GG MTTs. The tournament product differs from Rush & Cash
+in exactly five ways, all of them on line 1 or in the money:
+
+| | cash | tournament |
+|---|---|---|
+| hand id | `Poker Hand #RC900000001:` | `Poker Hand #TM900000011: Tournament #900000011, <name> ` |
+| stakes | `($0.01/$0.02)` | `- Level15(600/1,200(150))` |
+| amounts | `raises $1.32 to $2.52` | `raises 1,320 to 2,520` — chips, thousands separators, no currency sign |
+| antes | none | one `posts the ante` line per seated player, before the blinds |
+| rake | `Rake $0.05 \| Jackpot ... ` | `Rake 0 \| Jackpot 0 \| ...` — GG takes the fee at registration, so a tournament hand has no rake |
+
+Both products print the header clock with a **solidus** (`2026/10/04 12:00:00`); some consoles
+render `0x2f` as a dash, including inside `repr()` output, so only `ord()` is ground truth here.
+`Level(n)(sb/bb(x))`: `x` is *not* a reliable ante. In the 5 regular MTTs it is (12…250 chips, one
+per level). In the 5 freeroll gimmick tables it is a fixed `2,000,000,000`, so the parser takes
+antes from the `posts the ante` lines in the body and never from the level string.
+
+Import result, measured in a sandbox copy of the database (413 of 420 hands stored, 7 errors, 0
+duplicates, 0 partial): 5 `Tourneys` + 5 `TourneyTypes` + 158 `TourneysPlayers` rows created by
+fpdb's own `createOrUpdateTourneyType`/`insertTourney`/`getSqlTourneysPlayersIDs` plumbing, 32 new
+`Gametypes` rows (`type='tour'`), 3,231 antes all on `street = -1`. The invariant that says the
+money was read correctly holds on every stored hand: `sum(HandsPlayers.totalProfit) = 0` per
+tournament (stacks run into the tens of millions of chips and every table nets to zero).
+
+**The 7 refused hands are a genuine fpdb modelling gap, not a data error.** In the "Flipout" and
+"Cash Drop" freeroll tables every seat antes its *entire* stack, blinds are `0`, and the biggest
+ante is partly uncalled: measured on one such hand, the `posts the ante` lines sum to 1,208 chips
+more than the site's own `Total pot`, and 1,208 is exactly the printed `Uncalled bet (1,208)
+returned to <alias>`. `Hand.addAnte` puts antes in `pot.common`, while `Pot.end()`
+(`Hand.py:1862-1881`) looks for an uncalled overhang only in `pot.committed`, so it cannot return
+the 1,208 and `getRake` rejects the hand rather than importing a pot that does not balance.
+Fixing it means changing shared `Pot` semantics for every site, for 1.7% of the tournament corpus
+in tables that carry no decisions (they run no post-flop betting), so it is left loud. Those
+tournaments still appear in the reports: their summary (§12) supplies buy-in, entries, prize
+pool, rank and winnings.
+
+## 12. Tournament summary files `[IMPLEMENTED in pyfpdb/GGPokerSummary.py, 2026-10-14]`
+
+GG writes one 8-line summary per tournament you played. It is the **only** source of the real-money
+side of a tournament; the hands carry chips and nothing else. Measured on 10 files, one tournament
+per file, this exact shape:
+
+```
+Tournament #900000011, Synthetic Classic $1, Hold'em No Limit
+Buy-in: $0.92+$0.08
+3120 Players
+Total Prize Pool: $2,760.6
+Tournament started 2026/10/04 13:30:00
+1402th : Hero, $0
+You finished the tournament in 1402th place.
+You received a total of $0.
+```
+
+* The start date uses a solidus, same trap as §11.
+* The ordinal suffix is always `th`, even for a 1st or 2nd place finish (`1402th` above).
+* Prize pools carry thousands separators and drop the decimals when they are zero (`$50,000`).
+* Tournament names contain commas (`Daily $100,000 #ThanksGG Flipout`), so the header is matched
+  greedily back from the `, Hold'em No Limit` suffix at end of line.
+* Buy-in has 1, 2 or 3 `+`-separated parts. Which is which is measurable: every 2-part buy-in pays
+  an 8% fee ($0.92+$0.08, $1.84+$0.16) and the *middle* part of each 3-part buy-in is the same 8%
+  ($1.30+$0.20+$1 on a $2.50 `Bounty Hunters`), so 3 parts are base+fee+bounty → `knockout`,
+  `koBounty`. 1 part of `$0` is a freeroll → `buyinCurrency = 'FREE'`.
+* Only you are listed, so a summary updates one `TourneysPlayers` row, never the field.
+
+Order-free by design: hands create the `Tourneys` row with NULL money, the summary finds it by
+`siteTourneyNo` and fills `entries`, `prizepool`, `startTime`, `tourneyName` and a reconciled
+`TourneyTypes` (buyin/fee/knockout), and `TourneysPlayers.rank/winnings` for Hero. Measured on the
+sandbox import: 10 of 10 summaries stored; Hero's rank and winnings written on all 10, including
+the 5 freerolls that have a summary and no stored hands. `Database.createOrUpdateTourneysPlayers`
+needed one fix to make that work — it keyed its `tourneysPlayersIds` lookup by `player[1]`, the
+second *character* of the name (a leftover from when players were `[seat, name, chips]` lists),
+which raised `KeyError` on the update path that GG always hits because the hands got there first.

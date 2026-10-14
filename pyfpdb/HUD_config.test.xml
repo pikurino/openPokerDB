@@ -1063,7 +1063,7 @@ Left-Drag to Move"
         <hhc site="Entraction" converter="EntractionToFpdb"/>
         <hhc site="BetOnline" converter="BetOnlineToFpdb"/>
         <hhc site="Microgaming" converter="MicrogamingToFpdb"/>
-        <hhc site="GGPoker" converter="GGPokerToFpdb"/>
+        <hhc site="GGPoker" converter="GGPokerToFpdb" summaryImporter="GGPokerSummary"/>
     </hhcs>
 
     <raw_hands save="none" compression="none"/>

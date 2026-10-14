@@ -17,14 +17,28 @@
 #    along with this program. If not, see <http://www.gnu.org/licenses/>.
 ########################################################################
 
-"""GGPoker 'Rush & Cash' cash-game hand histories.
+"""GGPoker hand histories: 'Rush & Cash' cash tables and tournaments.
 
 Every pattern below encodes a shape measured on the corpus described in
 docs/gg-hand-history-format.md (the counts quoted in the comments come from that document). Where
-the document lists a case the corpus does not contain -- tournaments, antes, bring-ins, other
-currencies, 'Mucked', 'Side pot', heads-up Rush & Cash -- this parser raises FpdbParseError instead
-of guessing, so a format change fails loudly at import time rather than silently producing bad
-statistics.
+the document lists a case the corpus does not contain -- bring-ins, other currencies, 'Mucked',
+'Side pot', heads-up Rush & Cash -- this parser raises FpdbParseError instead of guessing, so a
+format change fails loudly at import time rather than silently producing bad statistics.
+
+The two products are spelled differently and the differences are all measured, not assumed:
+
+    cash         Tournament absent; 'Poker Hand #RC<hands id>', stakes '($0.01/$0.02)',
+                 every amount '$1.50', date '2026/10/04 12:00:00', no antes.
+    tournament   'Poker Hand #TM<id>: Tournament #<no>', stakes 'Level15(600/1,200(150))' in
+                 *tournament chips*, every amount thousands-separated with no currency sign
+                 ('raises 1,320 to 2,520'), and every seat but the blinds antes.
+
+Both products print the header clock with a SOLIDUS ('2026/10/04 12:00:00'), which is worth saying
+out loud because the console renders it as a dash -- see re_TourneyInfo.
+
+Because tournament money is chips, a tournament hand's `bb/100` is a chip figure and is not
+comparable to a cash one; the dollars a tournament paid are not in the hands at all, only in the
+summary files.
 """
 
 import L10n
@@ -50,10 +64,12 @@ class GGPoker(HandHistoryConverter):
         # Doc §7.2: aliases are 6-8 chars of [0-9a-f] and 29 of them are all digits, so no player
         # pattern may require a letter. 'Hero' is the local player (doc §1).
         'PLYR': r'(?P<PNAME>\S+)',
-        # Doc §3: money is always '$' followed by 0-2 decimals, never thousands-separated. Another
-        # currency makes these patterns fail rather than mis-parse (doc §9).
-        'CUR': r"\$",
-        'AMT': r"[\d.]+",
+        # Doc §3: cash money is '$' followed by 0-2 decimals. Tournament money is tournament chips
+        # -- no sign, and thousands-separated ('1,200'). The sign is optional and the digits allow
+        # commas so one set of patterns reads both products; another currency still fails them, so
+        # the failure mode doc §9 asks for is preserved.
+        'CUR': r"\$?",
+        'AMT': r"[\d.,]*\d",
     }
 
     limits = {'No Limit': 'nl', 'Pot Limit': 'pl'}
@@ -81,25 +97,54 @@ class GGPoker(HandHistoryConverter):
           (?P<DATETIME>\d{4}/\d{2}/\d{2}\s\d{2}:\d{2}:\d{2})$
         """, re.MULTILINE | re.VERBOSE)
 
+    # Doc §3 line 1 / §9: tournaments are a different first line. The id keeps its 'TM' prefix out
+    # of Hands.siteHandNo for the same reason 'RC' does -- the digits are the identity and the
+    # column is an integer. The three numbers in 'Level15(600/1,200(150))' are the blind levels and
+    # the per-seat ante, all in chips. The ante is NOT taken from here: see readAntes.
+    # The clock is the same solidus-separated shape as cash, and the byte check is the same trap:
+    # repr() of these headers renders 0x2f as a dash in this console, so a '\d{4}-\d{2}-\d{2}'
+    # pattern looked right and matched 0 of the 420 tournament hands. ord() of the separator, not
+    # the terminal, is what decides it.
+    re_TourneyInfo = re.compile(r"""
+          ^Poker\ Hand\ \#TM(?P<HID>\d+):\s+Tournament\ \#(?P<TOURNO>\d+),\ (?P<NAME>.+?)\s+
+          (?P<GAME>Hold'em|Omaha)\s(?P<LIMIT>No\ Limit|Pot\ Limit)\s-\s
+          Level(?P<LEVEL>\d+)\((?P<SB>[\d.,]+)/(?P<BB>[\d.,]+)\((?P<ANTE>[\d.,]+)\)\)\s-\s
+          (?P<DATETIME>\d{4}/\d{2}/\d{2}\s\d{2}:\d{2}:\d{2})$
+        """, re.MULTILINE | re.VERBOSE)
+
     # Doc §3 line 2 / §7.1: 'RushAndCash<id>' is unique per hand (345 ids over 345 hands) so it is
     # not a table identity -- see readHandInfo. Requiring the prefix keeps the GG products this
-    # corpus does not cover (regular cash tables, tournaments) out instead of mis-importing them.
+    # corpus does not cover (regular cash tables) out instead of mis-importing them.
     re_TableInfo = re.compile(r"""
           ^Table\ '(?P<TABLE>RushAndCash(?P<TABLEID>\d+))'\ (?P<MAX>\d+)-max
           \sSeat\ \#(?P<BUTTON>\d+)\ is\ the\ button$
         """, re.MULTILINE | re.VERBOSE)
 
-    # Doc §3 line 3: 6 seats per hand (1725 + 345 lines), always '($<stack> in chips)'.
-    re_PlayerInfo = re.compile(r"""
-          ^Seat\ (?P<SEAT>\d+):\ (?P<PNAME>\S+)\ \(\$(?P<CASH>[\d.]+)\ in\ chips\)$
+    # Tournament tables are numbered within the tournament ('Table "61"'), and the number is stable
+    # across hands, so it is a real table identity here rather than the per-hand id cash uses.
+    re_TourneyTableInfo = re.compile(r"""
+          ^Table\ '(?P<TABLE>\d+)'\ (?P<MAX>\d+)-max\ Seat\ \#(?P<BUTTON>\d+)\ is\ the\ button$
         """, re.MULTILINE | re.VERBOSE)
 
+    # Doc §3 line 3: 6 seats per hand (1725 + 345 lines), always '($<stack> in chips)'. Tournament
+    # seats are '(29,117 in chips)' -- same shape, no sign, thousands-separated.
+    re_PlayerInfo = re.compile(r"""
+          ^Seat\ (?P<SEAT>\d+):\ (?P<PNAME>\S+)\ \(%(CUR)s(?P<CASH>%(AMT)s)\ in\ chips\)$
+        """ % substitutions, re.MULTILINE | re.VERBOSE)
+
     # Doc §3 lines 5/6, §4: exactly one SB and one BB line per hand, both before
-    # *** HOLE CARDS ***. UNSEEN: antes, bring-ins, straddles (doc §9).
-    re_PostSB = re.compile(r"^%(PLYR)s: posts small blind %(CUR)s(?P<SB>[\d.]+)$"
+    # *** HOLE CARDS ***. UNSEEN: bring-ins, straddles (doc §9).
+    re_PostSB = re.compile(r"^%(PLYR)s: posts small blind %(CUR)s(?P<SB>%(AMT)s)$"
                            % substitutions, re.MULTILINE)
-    re_PostBB = re.compile(r"^%(PLYR)s: posts big blind %(CUR)s(?P<BB>[\d.]+)$"
+    re_PostBB = re.compile(r"^%(PLYR)s: posts big blind %(CUR)s(?P<BB>%(AMT)s)$"
                            % substitutions, re.MULTILINE)
+
+    # Every seated player antes in a GG tournament, before the blinds, and the line is absent from
+    # cash hands -- so this is what decides whether a hand has antes, not the level string, whose
+    # third number is a 2,000,000,000 sentinel in the all-in-every-hand 'Flipout'/'Cash Drop'
+    # products (measured on 7 hands there, where each seat antes its whole stack).
+    re_PostAnte = re.compile(r"^%(PLYR)s: posts the ante %(CUR)s(?P<ANTE>%(AMT)s)$"
+                             % substitutions, re.MULTILINE)
 
     # Doc §3 line 4: promotional money that is in the pot but contributed by no player (4 hands).
     # Note the spaces around ':' and the trailing space.
@@ -137,9 +182,10 @@ class GGPoker(HandHistoryConverter):
     re_ActionLine = re.compile(r"^%(PLYR)s: (?P<VERB>folds|checks|calls|bets|raises|shows|"
                                r"Chooses to EV Cashout|Pays Cashout Risk|Receives Cashout)"
                                r"(?P<ARGS>.*)$" % substitutions, re.MULTILINE)
-    re_Amount = re.compile(r"^ \$(?P<AMT>[\d.]+)(?: and is all-in)?$")
-    re_RaiseAmounts = re.compile(r"^ \$(?P<BY>[\d.]+) to \$(?P<TO>[\d.]+)(?: and is all-in)?$")
-    re_CashoutAmount = re.compile(r"^ \(\$(?P<AMT>[\d.]+)\)$")
+    re_Amount = re.compile(r"^ %(CUR)s(?P<AMT>%(AMT)s)(?: and is all-in)?$" % substitutions)
+    re_RaiseAmounts = re.compile(
+        r"^ %(CUR)s(?P<BY>%(AMT)s) to %(CUR)s(?P<TO>%(AMT)s)(?: and is all-in)?$" % substitutions)
+    re_CashoutAmount = re.compile(r"^ \(\$(?P<AMT>[\d.]+)\)$")     # cash only (DESIGN.md §3.6)
 
     # Doc §4/§6: 'shows' is not an action and is not confined to the showdown section; the hand-rank
     # parenthetical is optional (115 with, 20 without).
@@ -148,27 +194,30 @@ class GGPoker(HandHistoryConverter):
 
     # Doc §3 line 15 / §8.1: '<player> collected $<amt> from pot' is the only authoritative per-
     # player win amount. 8 hands have more than one line (side pots without markup), main pot first.
-    re_CollectPot = re.compile(r"^%(PLYR)s collected %(CUR)s(?P<POT>[\d.]+) from pot$"
+    re_CollectPot = re.compile(r"^%(PLYR)s collected %(CUR)s(?P<POT>%(AMT)s) from pot$"
                                % substitutions, re.MULTILINE)
 
     # Doc §5: the summary money line, fixed field order. The 'Uncalled bet ($N) returned to X' line
     # is not parsed at all: Pot.end() works the return out from the committed amounts itself.
+    # Measured on the tournament corpus: all 420 hands report 'Rake 0' -- the house takes the fee out
+    # of the buy-in, not out of the pot -- so the invariant below becomes pot == collected there.
     re_RakeSplit = re.compile(r"""
-          ^Total\ pot\ \$(?P<POT>[\d.]+)\ \|\ Rake\ \$(?P<RAKE>[\d.]+)
-          \ \|\ Jackpot\ \$(?P<JACKPOT>[\d.]+)
-          \ \|\ Bingo\ \$(?P<BINGO>[\d.]+)
-          \ \|\ Fortune\ \$(?P<FORTUNE>[\d.]+)
-          \ \|\ Tax\ \$(?P<TAX>[\d.]+)$
-        """, re.MULTILINE | re.VERBOSE)
+          ^Total\ pot\ %(CUR)s(?P<POT>%(AMT)s)\ \|\ Rake\ %(CUR)s(?P<RAKE>%(AMT)s)
+          \ \|\ Jackpot\ %(CUR)s(?P<JACKPOT>%(AMT)s)
+          \ \|\ Bingo\ %(CUR)s(?P<BINGO>%(AMT)s)
+          \ \|\ Fortune\ %(CUR)s(?P<FORTUNE>%(AMT)s)
+          \ \|\ Tax\ %(CUR)s(?P<TAX>%(AMT)s)$
+        """ % substitutions, re.MULTILINE | re.VERBOSE)
 
     # Doc §3 lines 17/19 / §4: per-seat summary clauses. Only the 'showed' ones carry cards and a
     # hand rank; the second outcome clause of a run-it-twice hand and the cashout suffixes are cut
     # off the rank string (doc §8.2/§8.3).
     re_SummaryShown = re.compile(r"""
           ^Seat\ (?P<SEAT>\d+):\ (?P<PNAME>\S+)\ (?:\((?:button|small\ blind|big\ blind)\)\ )?
-          showed\ \[(?P<CARDS>[^\]]+)\]\ and\ (?:won|lost)(?:\ \(\$(?P<POT>[\d.]+)\))?
+          showed\ \[(?P<CARDS>[^\]]+)\]\ and\ (?:won|lost)
+          (?:\ \(%(CUR)s(?P<POT>%(AMT)s)\))?
           \ with\ (?P<STRING>.+)$
-        """, re.MULTILINE | re.VERBOSE)
+        """ % substitutions, re.MULTILINE | re.VERBOSE)
     re_SummaryTail = re.compile(r", (?:and (?:won|lost)|Cashout Risk|EV Cashout)")
 
     # Doc §3 line 18: 'Board [...] ' restates the run-1 board in the 182 single-board hands.
@@ -180,20 +229,51 @@ class GGPoker(HandHistoryConverter):
     def readSupportedGames(self):
         # doc §3: Hold'em No Limit and Omaha Pot Limit only.
         return [["ring", "hold", "nl"],
-                ["ring", "hold", "pl"]]
+                ["ring", "hold", "pl"],
+                ["tour", "hold", "nl"]]
+
+    @staticmethod
+    def amount(text):
+        """A captured money string as fpdb wants it: no currency sign, no thousands separators.
+
+        Hand's add* methods strip commas for the ones they Decimal() themselves, but addCollectPot
+        does not, and this class compares amounts of its own in readAction/getRake/readOther, so the
+        stripping happens once here rather than at each call site.
+        """
+        return text.replace(",", "")
+
+    @classmethod
+    def money(cls, text):
+        return Decimal(cls.amount(text))
+
+    def header(self, handText):
+        """('tour'|'ring', match) for the hand's first line, or (None, None) if it is neither.
+
+        Tournament first, because its header is the only one carrying 'Tournament #', so the two
+        patterns cannot both match a hand.
+        """
+        m = self.re_TourneyInfo.search(handText)
+        if m:
+            return "tour", m
+        m = self.re_GameInfo.search(handText)
+        if m:
+            return "ring", m
+        return None, None
 
     def determineGameType(self, handText):
-        m = self.re_GameInfo.search(handText)
+        kind, m = self.header(handText)
         if not m:
             log.error(_("GGPokerToFpdb.determineGameType: '%s'") % handText[0:200])
             raise FpdbParseError
 
         info = {}
-        info['type'] = 'ring'
+        info['type'] = kind
         info['base'], info['category'] = self.games[m.group('GAME')]
         info['limitType'] = self.limits[m.group('LIMIT')]
-        info['sb'] = m.group('SB')
-        info['bb'] = m.group('BB')
+        # Database.getSqlGameTypeId Decimal()s these two without stripping thousands separators
+        # first, so the tournament stakes have to arrive clean.
+        info['sb'] = self.amount(m.group('SB'))
+        info['bb'] = self.amount(m.group('BB'))
         info['currency'] = 'USD'              # the only currency in the corpus (doc §3)
         return info
 
@@ -201,16 +281,35 @@ class GGPoker(HandHistoryConverter):
         pass
 
     def readHandInfo(self, hand):
-        m = self.re_GameInfo.search(hand.handText)
+        kind, m = self.header(hand.handText)
         if not m:
             log.error(_("GGPokerToFpdb.readHandInfo: '%s': no hand header") % hand.handText[0:200])
             raise FpdbParseError
-        # DESIGN.md §3.5: the header clock is the authoritative one. Files are newest-first and the
-        # filename clock is 6 h ahead of it, so import the header time and treat the offset as data.
+        # DESIGN.md §3.5: the header clock is the authoritative one; the filename is a label, and on
+        # the cash corpus its clock runs 6 h ahead of this one.
         hand.startTime = datetime.datetime.strptime(m.group('DATETIME'), "%Y/%m/%d %H:%M:%S")
         hand.handid = m.group('HID')
 
-        t = self.re_TableInfo.search(hand.handText)
+        if kind == "tour":
+            # Hand.prepInsert keys the whole tournament side off tourNo, and Hand.__init__ prefixes
+            # tablename with it, so a table number is only unique within one tournament.
+            hand.tourNo = int(m.group('TOURNO'))
+            hand.level = int(m.group('LEVEL'))
+            t = self.re_TourneyTableInfo.search(hand.handText)
+            hand.tablename = "%s-%s" % (m.group('NAME'), t.group('TABLE'))
+        else:
+            t = self.re_TableInfo.search(hand.handText)
+            if t:
+                # DESIGN.md §3.1: fast fold means the site's table id changes on every hand, so
+                # keying Hands.tableName on it would give 345 one-hand tables. Use a stable logical
+                # name per game and stakes, built from fpdb's own gametype words, and keep the real
+                # id in the comment.
+                category = self.games[m.group('GAME')][1]
+                limit = self.limits[m.group('LIMIT')]
+                hand.tablename = "RushAndCash-%s-%s-%s/%s" % (category, limit,
+                                                              m.group('SB'), m.group('BB'))
+                hand.rush = True
+                self.note(hand, "rushTable=%s" % t.group('TABLE'))
         if not t:
             log.error(_("GGPokerToFpdb.readHandInfo: '%s': no table line") % hand.handText[0:200])
             raise FpdbParseError
@@ -219,16 +318,6 @@ class GGPoker(HandHistoryConverter):
         # the PokerStars converter.
         hand.buttonpos = int(t.group('BUTTON'))
 
-        # DESIGN.md §3.1: fast fold means the site's table id changes on every hand, so keying
-        # Hands.tableName on it would give 345 one-hand tables. Use a stable logical name per game
-        # and stakes, built from fpdb's own gametype words, and keep the real id in the comment.
-        category = self.games[m.group('GAME')][1]
-        limit = self.limits[m.group('LIMIT')]
-        hand.tablename = "RushAndCash-%s-%s-%s/%s" % (category, limit,
-                                                      m.group('SB'), m.group('BB'))
-        hand.rush = True
-        self.note(hand, "rushTable=%s" % t.group('TABLE'))
-
     def note(self, hand, text):
         """Accumulate the GG-specific extras that Hands.comment exists to carry."""
         existing = getattr(hand, 'comment', None)
@@ -236,7 +325,7 @@ class GGPoker(HandHistoryConverter):
 
     def readPlayerStacks(self, hand):
         for a in self.re_PlayerInfo.finditer(hand.handText):
-            hand.addPlayer(int(a.group('SEAT')), a.group('PNAME'), a.group('CASH'))
+            hand.addPlayer(int(a.group('SEAT')), a.group('PNAME'), self.amount(a.group('CASH')))
 
     def markStreets(self, hand):
         m = self.re_Sections.search(hand.handText)
@@ -317,7 +406,13 @@ class GGPoker(HandHistoryConverter):
         pass            # readHandInfo takes Seat #n from the table line
 
     def readAntes(self, hand):
-        pass            # UNSEEN: this format has no antes (doc §9)
+        # Cash GG hands have no ante line at all (doc §9); tournament ones have exactly one per
+        # seated player, before the blinds. Hand.addAnte records the first one as the gametype's
+        # ante, which is why the level string's third number is not read here: in the all-in-
+        # every-hand 'Flipout'/'Cash Drop' products that number is 2,000,000,000 while the real
+        # antes are each seat's whole stack, and the lines are the truth.
+        for m in self.re_PostAnte.finditer(hand.handText):
+            hand.addAnte(m.group('PNAME'), m.group('ANTE'))
 
     def readBringIn(self, hand):
         pass            # UNSEEN: no All-In or Fold bring-ins in this corpus (doc §9)
@@ -327,12 +422,12 @@ class GGPoker(HandHistoryConverter):
         if not m:
             log.error(_("GGPokerToFpdb.readBlinds: '%s': no small blind line") % hand.handid)
             raise FpdbParseError
-        hand.addBlind(m.group('PNAME'), 'small blind', m.group('SB'))
+        hand.addBlind(m.group('PNAME'), 'small blind', self.amount(m.group('SB')))
         m = self.re_PostBB.search(hand.handText)
         if not m:
             log.error(_("GGPokerToFpdb.readBlinds: '%s': no big blind line") % hand.handid)
             raise FpdbParseError
-        hand.addBlind(m.group('PNAME'), 'big blind', m.group('BB'))
+        hand.addBlind(m.group('PNAME'), 'big blind', self.amount(m.group('BB')))
 
         # Doc §3 line 4: money in the pot that no player contributed. Pot.markTotal() and end() sum
         # pot.common, so putting it there keeps fpdb's pot equal to the site's 'Total pot', which is
@@ -376,18 +471,18 @@ class GGPoker(HandHistoryConverter):
                 if not a:
                     self.unsupported(hand, street, verb, args)
                 if verb == 'calls':
-                    hand.addCall(street, name, a.group('AMT'))
+                    hand.addCall(street, name, self.amount(a.group('AMT')))
                 else:
-                    hand.addBet(street, name, a.group('AMT'))
+                    hand.addBet(street, name, self.amount(a.group('AMT')))
             elif verb == 'raises':
                 a = self.re_RaiseAmounts.match(args)
                 if not a:
                     self.unsupported(hand, street, verb, args)
-                hand.addRaiseBy(street, name, a.group('BY'))
+                hand.addRaiseBy(street, name, self.amount(a.group('BY')))
                 # Doc §4: in 'raises $A to $B', B - A is the amount being raised against, so
                 # _addRaise's own arithmetic must land exactly on B. If it does not, the format --
                 # or our reading of it -- has changed.
-                if hand.lastBet[street] != Decimal(a.group('TO')):
+                if hand.lastBet[street] != self.money(a.group('TO')):
                     log.error(_("GGPokerToFpdb.readAction: '%s': %s raises to %s computed %s")
                               % (hand.handid, street, a.group('TO'), hand.lastBet[street]))
                     raise FpdbParseError
@@ -424,9 +519,10 @@ class GGPoker(HandHistoryConverter):
 
     def readCollectPot(self, hand):
         # Doc §8.1: side pots carry no markup, only several 'collected' lines, main pot first, which
-        # is the order they appear in the text.
+        # is the order they appear in the text. addCollectPot is the one fpdb add* method that does
+        # not strip thousands separators itself, so the amount is normalised here.
         for m in self.re_CollectPot.finditer(hand.handText):
-            hand.addCollectPot(player=m.group('PNAME'), pot=m.group('POT'))
+            hand.addCollectPot(player=m.group('PNAME'), pot=self.amount(m.group('POT')))
 
     def readShownCards(self, hand):
         # The summary restates the shown cards (doc §6) and adds the hand rank, which is the part
@@ -448,8 +544,9 @@ class GGPoker(HandHistoryConverter):
             log.error(_("GGPokerToFpdb.getRake: '%s': no summary money line") % hand.handid)
             raise FpdbParseError
 
-        rake = sum([Decimal(m.group(k)) for k in ('RAKE', 'JACKPOT', 'BINGO', 'FORTUNE', 'TAX')])
-        reported = Decimal(m.group('POT'))
+        rake = sum([self.money(m.group(k)) for k in
+                    ('RAKE', 'JACKPOT', 'BINGO', 'FORTUNE', 'TAX')])
+        reported = self.money(m.group('POT'))
 
         # Invariant, measured on 345/345 hands with 0 violations:
         #   Total pot == sum(collected) + Rake + Jackpot + Bingo + Fortune + Tax
@@ -474,9 +571,18 @@ class GGPoker(HandHistoryConverter):
                 raise FpdbParseError
 
         hand.rake = rake
-        self.note(hand, "rake=$%s jackpot=$%s bingo=$%s fortune=$%s tax=$%s"
-                  % (m.group('RAKE'), m.group('JACKPOT'), m.group('BINGO'),
-                     m.group('FORTUNE'), m.group('TAX')))
+        u = self.unit(hand)
+        self.note(hand, " ".join("%s=%s%s" % (k.lower(), u, m.group(k)) for k in
+                                 ('RAKE', 'JACKPOT', 'BINGO', 'FORTUNE', 'TAX')))
+
+    @staticmethod
+    def unit(hand):
+        """Sign to put in front of this hand's money in a comment.
+
+        Cash hands are dollars; tournament hands are chips, and writing '$1,200' about a stack of
+        chips would name a unit that is not true of it.
+        """
+        return "$" if hand.gametype['type'] != 'tour' else ""
 
     def readOther(self, hand):
         # Doc §8.1 cross-check: per player, the summary won/collected amounts equal the body
@@ -487,15 +593,20 @@ class GGPoker(HandHistoryConverter):
         for seat in self.re_SummarySeat.finditer(hand.handText):
             for amount in self.re_SummaryMoney.findall(seat.group('CLAUSES')):
                 name = seat.group('PNAME')
-                summary[name] = summary.get(name, Decimal(0)) + Decimal(amount)
+                summary[name] = summary.get(name, Decimal(0)) + self.money(amount)
+        u = self.unit(hand)
         for name, amount in summary.items():
             body = hand.collectees.get(name, Decimal(0))
             if amount != body:
-                self.note(hand, "%s: summary $%s != body $%s" % (name, amount, body))
+                self.note(hand, "%s: summary %s%s != body %s%s" % (name, u, amount, u, body))
 
     re_SummarySeat = re.compile(r"^Seat \d+: (?P<PNAME>\S+) (?:\([^)]*\) )?"
                                 r"(?P<CLAUSES>(?:folded|collected|showed).*)$", re.MULTILINE)
-    re_SummaryMoney = re.compile(r"(?:won|collected) \(?\$([\d.]+)\)?")
+    re_SummaryMoney = re.compile(r"(?:won|collected) \(?\$?([\d.,]*\d)\)?")
 
     def readTourneyResults(self, hand):
-        pass            # UNSEEN: tournaments are out of scope for this format (doc §9)
+        # Nothing to do: a GG hand says which tournament it was played in -- readHandInfo takes that
+        # from the header -- but never how the player finished. Place and prize come from the
+        # 'Tournament #<no> ...' summary files, which TourneySummary writes into Tourneys and
+        # TourneysPlayers. HandHistoryConverter never calls this method.
+        pass

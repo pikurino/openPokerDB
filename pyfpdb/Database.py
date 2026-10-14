@@ -3155,7 +3155,9 @@ class Database:
                             ,('addOnCount','addOnCount'), ('koCount','koCount'))
                 updateDb=False
                 resultDict = dict(list(zip(columnNames, result)))
-                tourneysPlayersIds[player[1]]=result[0]
+                # Keyed by player name: summary.ranks/winnings/... are name-indexed, and `player`
+                # is the name itself -- the old player[1] here took the second *character*.
+                tourneysPlayersIds[player]=result[0]
                 for ev in expectedValues :
                     summaryAttribute=ev[0]
                     if ev[0]!="winnings" and ev[0]!="winningsCurrency":
@@ -3174,7 +3176,7 @@ class Database:
                               summary.rebuyCounts[player],
                               summary.addOnCounts[player],
                               summary.koCounts[player],
-                              tourneysPlayersIds[player[1]]
+                              tourneysPlayersIds[player]
                              )
                     #print q
                     #pp = pprint.PrettyPrinter(indent=4)
