@@ -552,6 +552,16 @@ the Windows console default (cp1252) raised `UnicodeEncodeError` *inside* `loggi
     no test checks it, and which file wins a hand depends on `walk_testfiles`' unsorted `os.listdir`
     order. That order is also why the `fileId`/`gametypeId` values baked into the sidecars are
     machine-specific (see the byte-identical regeneration evidence above).
+- `StatsEngine.py`'s own reconciliation (`python StatsEngine.py [db]`, defaulting to the harness
+  database) was green for the wrong reason and is now fixed: it took **the first site's** engine
+  counters and compared them against SQL over **every** site, so on the 19-site harness database all
+  17 cash checks failed by a factor of ~5 (engine 2070 seats vs SQL 10066). It now sums the counters
+  across sites. The last remaining mismatch was scope, not arithmetic: 8 of that database's cash
+  raise rows sit on `HandsActions.street = 4` — a fifth betting round some legacy parsers emit, which
+  `STREETS = (0,1,2,3)` deliberately has no bucket for — so the baseline is limited to the four
+  streets the engine counts. GGPoker writes no street-4 rows (measured: the live database passes
+  unscoped). All three corpora are green now: harness **17/17 + 15036 tourney checks**, live
+  **17/17** (tourney pass skipped, no finished events), tournament sandbox **17/17 + 22**.
 - Policy for this revival (matches how the project should have been run): assertions must encode
   **what the code actually produced and what the hand history says**, not what a plausible poker
   premise implies. When a test fails because reality disagrees with the assumption, measure the
@@ -575,9 +585,10 @@ the Windows console default (cp1252) raised `UnicodeEncodeError` *inside* `loggi
 
 ---
 
-## 7. GUI (PySide6) `[SCREENS 1-5 BUILT; tournament mode BUILT 2026-10-14]`
+## 7. GUI (PySide6) `[SCREENS 1-5 BUILT; tournament mode BUILT 2026-10-14; HM2 graph lines, right-click scoping and themes BUILT 2026-10-14; graph in its own window and a hero-scoped grid BUILT 2026-10-14; population tab and report designer BUILT 2026-10-14, §7.1]`
 
-One entry point, `pyfpdb/HudMain.py`, owns the five screens; `pyfpdb/HudReplayer.py` +
+One entry point, `pyfpdb/HudMain.py`, owns the five screens (and, since 2026-10-14, a sixth report
+tab whose engine is `pyfpdb/Metagame.py` -- §7.1); `pyfpdb/HudReplayer.py` +
 `pyfpdb/HudTable.py` own the felt. The old `fpdb.pyw` and the 18 `Gui*` modules are unreferenced by
 anything the window calls. It runs the real pipeline (`Importer` → `GGPokerToFpdb` /
 `GGPokerSummary` → `DerivedStats` → `Database`) on a `QThread`, and reports come from
@@ -732,12 +743,125 @@ with a recorded finish exist, 22 tournament checks (every row's place % and hand
 SQL, and the grid's net against `sum(winnings - ticket)`). On a cash-only database the tournament
 pass reports "no finished tournaments, skipped" instead of passing vacuously.
 
+**Graph lines, right-click scoping and themes `[2026-10-14]`**
+
+The plot now carries the nine lines HM2 splits results into, all accumulated by one pass of
+`StatsEngine.series()` over the filtered hands in time order: `net`, `ev`, `sd`, `nsd`, and each of
+those two halves split by sign (`sd_won`, `sd_lost`, `nsd_won`, `nsd_lost`) plus `rake`. The splits
+are exact, not approximate: `sd + nsd == net`, `sd_won + sd_lost == sd`, `nsd_won + nsd_lost == nsd`
+(measured on the 345-hand corpus: -1025.5 + 54.5 = -971.0 bb, 190.0 - 1215.5 = -1025.5,
+280.0 - 225.5 = 54.5). Three preset buttons choose the set — *Core* (the four HM2 defaults),
+*Showdown split*, *Everything* — and each line also has its own tick box with a colour swatch. The
+swatch is drawn into a `QPixmap` rather than coloured through the palette because the app stylesheet
+sets `color`, and a stylesheet property beats a palette role.
+
+Two things about those lines are measured, not assumed:
+
+- `rake` accumulates `HandsPlayers.rake`, which the site stores positive in cents (min 0, max 13;
+  **115 of 2070** seats nonzero, and **114 of those 115 won the hand**). So GG attributes a hand's
+  rake to its winner, and a player-filtered rake line means "rake that sat on that player's winning
+  seats" — it is not that player's share of the pot. Because a rising rake line is money *out*, the
+  summary panel prints it in the theme's text colour, never the profit green the other rows use.
+- `ev` coincides with `net` until Database → All-in EV has written `HandsPlayers.allInEV`; the panel
+  says so in words rather than letting two overlapping lines be read as "running exactly even".
+  Once filled, `ev - net` is printed as the variance the rail took, with the count of all-in hands.
+
+**Right-click is how a stake becomes a plot.** The grid has a context menu (`_grid_context`) whose
+entries depend on what the row *is*: a cash stake or day row offers *Plot this stake: <label>* and
+*Filter everything to this stake*; a by-player row offers the same for that alias; a tournament row
+offers *Filter to this event's day: <date>*; the *By Position* grouping has no seat in
+`Filters`, so its rows say so and are disabled. Every menu ends in *Clear all filters*. Plotting does
+not touch the filters — it rebuilds a narrower `Filters` (`_narrow`, constructor-built because
+`Filters` is never mutated after construction) and hands it to the graph with a scope label, so the
+grid above and the hand list below keep showing the whole picture. Measured: right-clicking the
+$0.01/$0.02 NL row plots 167 of the 345 hands, and its chart title reads
+`Results -- NL Hold'em $0.01/$0.02 (Hero)`.
+
+The x-axis switches between **hands** (one point per hand) and **days** (one point per calendar day,
+plotted at that day's closing total). Day mode is real code but reads as a single point on this
+corpus, which is all one day, so the harness feeds a synthetic three-day series and asserts three
+points with the last at (2, 30.0) rather than trusting the count of a one-day plot.
+
+**Themes and the settings file.** `pyfpdb/HudThemes.py` owns five palettes — `black` (default),
+`hm2`, `pt4`, `hm3`, `classic` — and the persisted settings. These are *modelled on* those products'
+look (dark window, tinted rows, a header band); no colour value was lifted from a screenshot of a
+competitor. A theme is a dict of named colours plus a Fusion stylesheet keyed on `objectName`
+(`modeButton`, `applyButton`, `graphSummary`, `historyTitle`, `linePicker`, `reportGrid`), which is
+why no widget in `HudMain` may set its own inline stylesheet: an inline sheet on a themed widget
+wins over the app sheet and the widget stops following the theme. `apply()` forces `Fusion` because
+the Windows native style ignores palette roles for headers and alternate rows entirely.
+
+Settings live in `%APPDATA%\fpdb\HudMain.settings` (JSON, next to the importer's own config):
+`theme`, `graph_lines`, `graph_x`, `hero`, `history_hands`. `Settings → Settings...` opens a
+three-tab dialog (Appearance / Graph and hero / Hand list) whose theme combo previews live and reverts
+on Cancel; `Settings → Theme` is a checkable submenu for the one change worth making with a single
+click. Both write through the same `save_settings()`, and a fresh window reads the file back — the
+harness closes the window, reopens it and asserts the rake tick and the 250-hand list size came from
+disk. Reloading a model (`StatsModel.retheme()`) is how the grid picks up new money colours: the
+brushes are made in `data()`, so a palette change alone leaves the old ones cached in the view.
+
+**The graph is a window, and the grid counts Hero `[2026-10-14, from his own run-through]`**
+
+He opened the build, right-clicked a stake and could not get back to the report: the plot was a page
+of the main window's `QStackedWidget`, so showing it *removed* the grid. `GraphView` is now the
+central widget of a `GraphWindow(QtWidgets.QMainWindow)` opened beside the report instead of in place
+of it, and it is created lazily (`graph_view()`) and reused — one window, raised and re-plotted on
+every right-click, closed with the app. `MainWindow.stack` is gone; the grid is a plain child of the
+splitter. Everything that used to reach through the stack (`store_settings`, `preview_theme`,
+`_remember_graph_options`, `load_database`, `recompute_ev`) now guards on `self.graph_window is not
+None` and redraws only `if ... isVisible()`, so a closed window is never built as a side effect of
+changing a theme.
+
+The second complaint was that "the plot only has 150 or 300 hands" while the row it came from claimed
+more. Both were true and neither was a query bug: **the row and the plot were counting different
+things.** By-Stakes, By-Day, By-Game and By-Position aggregate every *seat* in the filtered hands, so
+a stake row was the whole table's result — measured on the live corpus, the PLO $0.01/$0.02 row read
+**1068 hands / -$2.10**, which is the field's profit and therefore exactly the rake the site took,
+with a VPIP of 318/1068 that is the average of nine players per hand. Hero played **178** of those
+hands for **-$10.70** (-535 bb/100); the NL stake: 1002 seats / -$1.67 against Hero's 167 hands /
+-$8.72. The graph, which is one player's line, was the honest one.
+
+So the seat that represents him is now a first-class setting, `hero`, and not a graph detail:
+`StatsEngine.aggregate(..., hero=)` and `report(..., hero=)` skip every `HandsPlayers` row whose
+player name is not it (matched exactly, not with `LIKE`, because `a1b2c3d4` is a substring of
+`a1b2c3d4e`), and `MainWindow.apply_filters` passes `self.hero` for the four stake-shaped groupings.
+The *Players* tab is deliberately **not** hero-scoped — a player report that only ever contained
+Hero would be useless — which the harness pins by asserting that tab still has 1532 rows while the
+stake tab shows 148. Two consequences are asserted rather than hoped: a day row and the plot opened
+from it end on the same hand count (345 vs 345), and the plot's last point equals the row's own net.
+A wrong `hero` is now visible in the loudest possible way — the stake grid goes to zero rows — and
+naming him again restores all 148, which is the pair of checks that proves the setting is wired to
+the query and not just to the graph's player box. `graph_player` in an existing settings file is
+migrated to `hero` on load.
+
+One UI defect found while reading the screenshots of that change: the hand list's `Show [spin]` and
+`preset: [combo]` could disagree (a screenshot caught 10,000 hands listed under a preset box reading
+250). The spin is the number that limits the query, so the combo now follows it and blanks to
+`currentIndex -1` when he types a number that is not one of its four entries; clicking a preset still
+drives the spin.
+
+**Verified how (this round).** `smoke_graph_settings.py` in the session workspace drives the real
+window on the native `windows` platform with `Qt.WA_DontShowOnScreen` + `grab()` — same rule as the
+replayer drivers: no OS-level input, no window on the desktop — and writes 13 PNGs that were then
+read back by eye. The screenshots caught four things the assertions had passed: a summary panel
+narrow enough to wrap every number, a clipped ninth tick box, `$0.00` hand results tinted red as if
+they were losses, and the top *cash* row banded as though it were a totals row (only the tournament
+report has one). Each is now asserted, not just looked at.
+
 **Next, and the decision each one carries.**
 
 - *Player and versus-player reports* (the brief's b and c). Mechanically these are one more
   `StatsEngine` grouping over `HandsActions`, but they are blocked on §3.2: GG aliases change between
   sessions, so a per-villain stat line is only honest while the alias holds. Ship it as
   alias-scoped-with-a-visible-date-range, not as a lifetime profile, until identity is solved.
+- *How `hero` gets decided.* It is a typed name today, matched exactly, and the default `Hero` is the
+  seat the importer writes when a history says `Hero` — which is true of every hand in this corpus
+  because the histories are his own exports. Import a file from another account and the stake grid
+  silently empties, which is loud but unhelpful; the honest follow-up is to offer the seat names
+  actually present in the database (a `select distinct` over `Players`) in the settings tab rather
+  than making him type one. The status bar already names the seat the rows are counting
+  (`By Stakes -- 148 rows, Hero played 1212 hands`, and `1212 dealt` on the Players tab), so the
+  scoping is at least visible where he looks.
 - *A committed privacy guard* (`TestGgPrivacy.py`): scan tracked files for real-shaped GG
   identifiers -- hand ids, 8-hex aliases, clocks, tournament numbers -- and fail. It must derive its
   denylist by reading the local corpus when the corpus is present and skip with a note when it is
@@ -753,6 +877,72 @@ pass reports "no finished tournaments, skipped" instead of passing vacuously.
   every level), so tour mode needs its own line -- net in tickets or in chips against an event index,
   plus ITM% over time. The button is disabled today rather than drawing a wrong line.
 - *By day / by session grouping*: needs §8's timezone decision before the buckets mean anything.
+
+### 7.1 Population reports: the metagame engine `[BUILT 2026-10-14]`
+
+The five hand tabs answer "how did I do". The sixth answers "what does the field do in this spot",
+and that question needs a unit none of the others have: a **decision**. `pyfpdb/Metagame.py` is the
+engine for it -- a replay of `HandsActions` that yields one `Decision` per action (who, street, spot,
+verb, bet size faced as % pot, the board dimensions live at that moment, profit in bb, won or not),
+scoped to cash hold'em (`Gametypes.base == 'hold'`, and the default `Filters` keeps tournament hands
+out). Money follows the model §3 measured: a raise costs `amount + amountCalled`, blinds sit at
+street -1, `streetNPot` is end-of-street.
+
+**The spot classifier is the product.** 20 spots, and the interesting part is the split of the three
+situations with no bet out: the preflop raiser betting is a c-bet, an opponent betting *first to act*
+is a lead, and an opponent betting after someone checked is a probe. An earlier draft lumped them and
+read 238 "probe spots" on a 345-hand corpus, which was mostly checking round to the raiser. The
+preflop side counts raises: unopened / faced open / faced 3-, 4-, 5-bet.
+
+**Two registries, one declarative spec.** 191 measures in five families -- `all__*` (row-generic, the
+ones to use when the report groups *by* spot), per-spot decisions, reactions, outcomes, and two
+specials -- times 18 dimensions: spot, street, action, bet-size bucket, position, stake, day, hero
+vs field, outcome, and the board set (flop suits / pairing / connectivity / high card / breadth, and
+what the turn and river cards *did*: paired the board, overcard, undercard, middle card, completed a
+flush or a straight, plus suits). A report is a JSON shape --
+`{name, group_by[], measures[], min_n, split, where}` -- so a design is a file, diffable and
+shareable, loaded from `%APPDATA%\fpdb\reports\*.report.json` on top of 8 built-in presets. `where`
+is the filter bar's job and is **stripped on save**: a saved report is a shape, never yesterday's
+date range.
+
+`DIMENSION_STREET` is the trap that took the longest to see. Grouping by `river_effect` asks a
+question about the river, so a preflop decision has no answer for it; bucketing those under one label
+("not dealt") produced a 1,791-decision row that swallowed a flop-texture report whole. Each board
+dimension now has a floor street, decisions below it are dropped, and the count dropped is printed in
+the status bar -- measured: the c-bet-by-texture preset reports 13 rows over 767 decisions and says
+1,791 were left out because they never reached the flop.
+
+**The tab, and why it reuses the grid.** `grid_report()` returns rows in exactly the shape
+`HudMain.StatsModel` already renders (`row[key] = (display, num, den)`, plus `_label`, `group` and
+`_counters`), so population rows get the theme, column widths, money colours, num/den tooltips and
+CSV export for free and cannot drift into a second widget that shows the same number a different way.
+A strip above the grid carries the chooser, *Design report...*, Save, Delete, the minimum decision
+count and whose rows to show (the field / Hero / both); `ReportBuilder` is the designer -- two
+checkable, reorderable lists with a family filter and a word filter, a 400 ms-debounced live preview
+run through the same engine, a warning when a spot-specific column is combined with grouping by spot
+(it reads 0 on every other row), and a JSON view of the spec.
+
+**Measured on the live corpus.** 2,558 field decisions. "Field reaction by spot" gives 15 rows:
+preflop-unopened 1,017 decisions / 70.8% fold, faced-an-open 592 / 72.1%, faced-a-3-bet 161 / 65.2%,
+faced-a-4-bet 15 / 53.3%, river-faced-a-bet 33 / 69.7%. bb per decision by street: preflop 0.62
+(1,791), flop 2.50 (410), turn 2.02 (230), river 0.81 (127). Splitting the same rows Hero against the
+field is the first report that answers the brief's actual purpose -- Hero's 357 preflop decisions
+fold 63.0% where the field's 1,017 fold 70.4%, and his bb-per-decision is negative on all four
+streets (541 decisions in total) while the field's is positive on all four.
+
+**What it cannot answer yet.** "How often does the field call a river bet with less than X strength"
+needs a hand-strength layer that does not exist: `pokereval`/`treys`/`pyeval` are all absent from the
+venv and `HandsStove` has 0 rows, so no measure reads a *holding*. That, not the tab, is the blocker
+on strength-conditioned population reports.
+
+**Verified how.** `python Metagame.py --selftest` reconciles the replay against raw SQL and against
+`HudCache` (35 checks, 0 failures on the live DB). `smoke_population_tab.py` in the session workspace
+drives the real window -- native `windows` platform, `Qt.WA_DontShowOnScreen` + `grab()`, no OS-level
+input, `Metagame.REPORT_DIR` redirected to a temp folder so the test never writes his reports -- and
+reconciles **every grid cell** against an independently computed `grid_report` call: 57 checks, 0
+failures, 7 PNGs read back by eye. The screenshots caught what the assertions had passed: `all__*`
+headers long enough to push the grid off-screen, a duplicate decisions column in the preview, and
+"1 ticked column(s)" / "1 decisions" wording.
 
 ---
 

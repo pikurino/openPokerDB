@@ -326,11 +326,18 @@ class Engine(object):
             c["ev_hands"] += 1
         return pid, name, position_label(position), c
 
-    def aggregate(self, filters=None, group_by=("player",)):
+    def aggregate(self, filters=None, group_by=("player",), hero=None):
         """Return {group_key_tuple: counter dict} over every hand matching `filters`.
 
-        `group_by` names any of 'player', 'day', 'gametype', 'site', 'game'. A single 'position'
-        grouping is handled by `position_report`, which re-uses these per-hand replays.
+        `group_by` names any of 'player', 'day', 'gametype', 'site', 'game', 'position'.
+
+        `hero` accumulates only that seat name's rows. It exists because a By-Stakes row without it
+        sums *every* seat at every hand, which is nobody's result: measured on the live corpus the PLO
+        stake read 1068 hands and -$2.10 (the whole field's profit, i.e. the rake) while Hero played
+        178 of those hands for -$10.70. Scoped to Hero, the row's hands, net, bb/100 and every
+        percentage describe one seat -- the same set of hands `series()` plots, so a right-clicked row
+        and the plot it opens finally agree. Matched exactly, not with LIKE: 'Hero' is the name the
+        importer writes for the user's own seat, and a substring match would sweep in 'HeroClone'.
         """
         filters = filters or Filters()
         cur = self.conn.cursor()
@@ -342,6 +349,8 @@ class Engine(object):
             replayed = replay_actions(actions)
             for prow in players:
                 pid, _name, poslabel, c = self._split_row(meta, prow)
+                if hero is not None and _name != hero:
+                    continue
                 for k, v in replayed.get(pid, {}).items():
                     if k == "allin":
                         c["allin_hands"] += 1 if v else 0
@@ -381,11 +390,17 @@ class Engine(object):
     def series(self, filters=None, player=None):
         """Cumulative bb lines over the filtered hands in time order, for the graph.
 
-        Returns a list of ``{"n", "t", "net", "sd", "nsd", "ev"}`` where each money value is a running
-        total in big blinds. `player` restricts the walk to one name (the hero's own winrate);
-        when it is None every seat at the filtered hands is summed, i.e. the whole field's net.
-        The showdown and non-showdown running totals split each hand's profit by `sawShowdown`, so
-        the two lines add back to the net line.
+        Returns one dict per hand with ``n`` (hand count so far), ``t`` (its startTime) and running
+        totals in big blinds: ``net``, ``ev``, ``sd``/``nsd``, their won/lost halves (``sd_won``,
+        ``sd_lost``, ``nsd_won``, ``nsd_lost``) and ``rake``. `player` restricts the walk to one name
+        (the hero's own winrate); when it is None every seat at the filtered hands is summed, i.e.
+        the whole field's net.
+
+        The showdown and non-showdown totals split each hand's profit by `sawShowdown`, so the two
+        add back to the net line; each is split again by sign, which is the four-line HM2 breakdown
+        (a hand that goes to showdown and wins raises `sd_won` and `sd` and leaves `nsd` alone).
+        `rake` accumulates `HandsPlayers.rake`, stored positive in cents -- measured on the live
+        corpus: min 0, max 13 -- so the line climbs with volume and reads as rake paid.
 
         The all-in-EV line replaces a hand's result with `HandsPlayers.allInEV` wherever the seat had
         money at risk -- which is what `AllInEv.fill_column` writes -- and keeps the real result
@@ -399,29 +414,41 @@ class Engine(object):
         hand_ids = sorted(filters.hand_ids(cur), key=lambda r: (r[1], r[0]))
         out = []
         net = sd = nsd = ev = 0.0
+        sd_won = sd_lost = nsd_won = nsd_lost = rake = 0.0
         n = ev_hands = 0
         for hand_id, start in hand_ids:
             meta, players, _actions = self._load_hand(cur, hand_id)
-            bb = (meta[4] or 1) or 1
+            bb = float((meta[4] or 1) or 1)
             took = False
             for prow in players:
                 _pid, name, _pos, c = self._split_row(meta, prow)
                 if player is not None and name != player:
                     continue
-                net += c["net"] / float(bb)
+                net += c["net"] / bb
                 ev += c["bb_ev"]
                 if c["ev_hands"]:
                     ev_hands += 1
+                sd_net, nsd_net = c["net_sd"] / bb, c["net_nsd"] / bb
                 if c["sd"]:
-                    sd += c["net"] / float(bb)
+                    sd += sd_net
+                    if sd_net > 0:
+                        sd_won += sd_net
+                    elif sd_net < 0:
+                        sd_lost += sd_net
                 else:
-                    nsd += c["net"] / float(bb)
+                    nsd += nsd_net
+                    if nsd_net > 0:
+                        nsd_won += nsd_net
+                    elif nsd_net < 0:
+                        nsd_lost += nsd_net
+                rake += c["rake"] / bb
                 took = True
             if not took:
                 continue
             n += 1
             out.append({"n": n, "t": start, "net": net, "sd": sd, "nsd": nsd, "ev": ev,
-                        "ev_hands": ev_hands})
+                        "sd_won": sd_won, "sd_lost": sd_lost, "nsd_won": nsd_won,
+                        "nsd_lost": nsd_lost, "rake": rake, "ev_hands": ev_hands})
         return out
 
 
@@ -452,10 +479,13 @@ def cents(value_):
     return ("-$%.2f" if v < 0 else "$%.2f") % (abs(v) / 100.0)
 
 
-def report(conn, filters=None, group_by=("player",), columns=None, min_hands=1):
-    """Aggregate and render each group as {key: (display, num, den)} plus its group label."""
+def report(conn, filters=None, group_by=("player",), columns=None, min_hands=1, hero=None):
+    """Aggregate and render each group as {key: (display, num, den)} plus its group label.
+
+    `hero` is passed to `Engine.aggregate`; see there for what it does to a row's numbers.
+    """
     engine = Engine(conn)
-    groups = engine.aggregate(filters, group_by)
+    groups = engine.aggregate(filters, group_by, hero=hero)
     columns = columns or [k for (k, _l, _kind, _n, _d) in STATS]
     rows = []
     for key, counters in groups.items():
@@ -629,8 +659,15 @@ def _tourney_totals(rows):
 def _selftest(conn):
     """Reconcile the engine against raw SQL over the same corpus. Prints PASS/FAIL per check."""
     cur = conn.cursor()
-    total = Engine(conn).aggregate(Filters(), group_by=("site",))
-    counters = next(iter(total.values())) if total else {}
+    # One group per site, summed. Taking only the first group -- as this did -- reconciles one parser's
+    # corpus against the whole database's SQL, which fails 17/17 the moment the file holds a second
+    # site (the regression harness database has 19 and 10066 cash seats, GGPoker's 2070 among them).
+    by_site = Engine(conn).aggregate(Filters(), group_by=("site",))
+    counters = {}
+    for site_counters in by_site.values():
+        for key, val in site_counters.items():
+            if isinstance(val, (int, float)):
+                counters[key] = counters.get(key, 0) + val
 
     def sql_one(sql):
         return cur.execute(sql).fetchone()[0]
@@ -667,7 +704,11 @@ def _selftest(conn):
         want = cur.execute("select count(*)" + CASH_HA + " and ha.street=? and ha.actionId=?",
                            (street, verb_ids["calls"])).fetchone()[0]
         eq(prefix, int(counters.get(prefix, 0)), want)
-    want_raises = cur.execute("select count(*)" + CASH_HA + " and ha.actionId=?",
+    # Scoped to the four betting streets, because `STREETS` has no bucket for a fifth: measured on the
+    # regression harness database, 8 of its cash raise rows sit on street 4 (old parsers that record a
+    # betting round after the river), so an unscoped baseline is 8 too high. GGPoker writes none.
+    want_raises = cur.execute("select count(*)" + CASH_HA
+                              + " and ha.actionId=? and ha.street in (0,1,2,3)",
                               (verb_ids["raises"],)).fetchone()[0]
     eq("raise_total", int(sum(counters.get("raise%d" % s, 0) for s in STREETS)), want_raises)
 
